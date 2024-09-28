@@ -1,0 +1,909 @@
+FORMAT: 1A
+HOST: https://distributor.test.paysafecard.com/v1
+
+# Pin-on-Demand REST API
+This document should give business partners a clear understanding of the technical integration work that needs to be carried out to successfully implement the Pin-on-Demand REST API.
+
+The Pin-on-Demand REST API allows full control of the sales process in real-time for both parties and therefore means some integration work and thorough testing of the real-time API.
+
+If any questions arise, please feel free to contact us at [*integration@paysafecard.com*]().
+
+# Integration Process Overview
+The following steps need to be completed in order to integrate the API.
+
++ **Test Data**: paysafecard provides the test data package. This contains an API key and a .conf file needed for the certificate creation (both for authentication), account details, an integration checklist, voucher texts and a link to the downloads page.
++ **IP whitelisting**: The business partner provides the IP(s) used to connect to the paysafecard system, to be whitelisted.
++ **Integration in the Test Environment**: The business partner integrates the API into their test environment. Detailed information about the flows and API requests are contained below in this documentation.
++ **Integration Test**: As soon as the integration is finished in the test environment and the integration checklist fulfilled, the business partner must contact the paysafecard integration team who will test the API implementation as well as verify the voucher samples.
++ **Reconciliation Test:** paysafecard provides an example of a reconciliation file from the test system that must be processed by the business partner.
++ **Productive Data**: Once the integration test is successful, paysafecard provides the productive data. This contains a productive environment API key and account details. 
++ **Switch to Production**: The business partner switches the integration to the production environment (change API endpoints and API key).
++ **Productive Check**: An end to end test must be carried out to ensure a successful connection to the productive environment. A new voucher sample must be provided as proof of a successful integration in the productive environment.
++ **Go-live**: As soon as the productive check is successful, the technical integration is finished and a date can be set for the go-live.
+
+# Technical Integration
+This section provides a technical introduction to the Pin-on-Demand REST API.
+
+## About the API
+The Pin-on-Demand REST API follows <a href="http://en.wikipedia.org/wiki/Representational_state_transfer" target="_blank">*RESTful*</a> design principles making it easy to understand and integrate the API.
+Representational State Transfer (REST) is a software architecture style, consisting of guidelines for creating scalable web services.
+
+RESTful systems typically communicate over the Hypertext Transfer Protocol with the same HTTP verbs (GET, POST, PUT, DELETE, etc.) used by web browsers to retrieve web pages and send data to remote servers.
+
+It also facilitates solid and universally accepted foundations like [*http basic authentication*](http://en.wikipedia.org/wiki/Basic_access_authentication), [*http verbs*](http://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol#Request_methods), [*JSON*](http://en.wikipedia.org/wiki/JSON) and [*CORS*](http://en.wikipedia.org/wiki/Cross-origin_resource_sharing).
+
+## Versioning
+Every time there is backwards-incompatible change to the API, a new major version will be released. This major version is part of the URL path.
+The current major version is *v1*. Unless informed by our technical support department that we are dropping support for a particular API version, you do not need to switch API versions.
+
+## Establishing a connection
+A connection to the paysafecard system is successful if the following prerequisites are fulfilled:
+- X.509 certificate for request authenticity (provided by paysafecard).
+- API key for request authentication (provided by paysafecard).
+- Authorization of the business partner server IP address (if a 403 error is received when trying to access the service, it is likely that the IP address is not yet allowed to access).
+- Content-type: Please make sure that the content type in the HTTP header, when submitting requests, is set to **Content-Type: application/json**
+- Character encoding needs to be in UTF-8
+
+Connect to our services only via respective FQDNs
+Do not cache DNS resolutions of paysafecard FQDNs in your infrastructure (Client servers, Resolvers etc.). The DNS resolutions should expire as soon as the TTL is reached.
+In case your application is based on Java, please check your TTL setup on JVM, the DNS caching behavior needs to be adjusted to:
+networkaddress.cache.ttl=60 (TTL 60 seconds). Please note that, this parameter needs to be persisted in the JVM security config
+If your application is based on any other framework that caches DNS resolution, please make sure to set the DNS TTL to no more than 60 seconds or rely on the TTL set by our DNS records
+
+Honoring DNS changes will make sure that you connect always to our active system.
+
+## DNS settings 
+- Connect only via respective FQDN
+- Do not cache DNS resolutions of paysafecard FQDNs in your infrastructure (Client servers, Resolvers etc.). The DNS resolutions should expire as soon as the TTL is reached.
+- In case your application is based on Java, please check your TTL setup on JVM, the DNS caching behavior needs to be adjusted to:
+                              networkaddress.cache.ttl=60  (TTL 60 seconds). Please note that, this parameter needs to be persisted in the JVM security config
+- If your application is based on any other framework that caches DNS resolution, please make sure to set the DNS TTL to no more than 60 seconds or rely on the TTL set by our DNS records
+
+Honoring our DNS changes will make sure that you always connect to our active system.
+
+## X.509 Certificate Authenticity
+paysafecard will provide the business partner with a .conf file that must be used to create a signed certificate requests ([CSR](https://en.wikipedia.org/wiki/Certificate_signing_request)).
+Instructions for the creation of the CSR will be provided with the test data delivery.
+
+After successful CSR creation, paysafecard will then provide the business partner with the X.509 certificate based on this CSR, which will work on both test and productive environments.
+
+**Important:** Please keep the private key in a safe place and do not provide it to paysafecard nor disclose it to third parties. paysafecard will never ask for the private key.
+
+## SSL Encryption
+The certificate ensures encryption of all communications.
+
+- Only TLS 1.2 (SSL 3.3) is supported
+- Weak ciphers are disabled
+
+## API Key Authentication
+Every request must be authenticated using an API key:
+- The value of the **API key needs to be base64 encoded** when transmitted in the HTTP header!
+- Set the key as the username. [*HTTP basic authentication*](http://en.wikipedia.org/wiki/Basic_access_authentication)
+- Your API key may only be used from your backend systems.
+- **Please note:** Your API key must be kept secured - never expose the API key to anybody!
+
+Below is an example of how the API key is supposed to be set.
+
+```
+Authorization: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+```
+
+## Test Environment and Endpoints
+Every new business partner needs to first integrate the paysafecard API on the test environment.
+Once the integration is finished, a UAT(User Acceptance Test) needs to be done in order to ensure a seemless integration flow.
+
+- The endpoint for the *test environment* is: https://distributor.test.paysafecard.com/v1/
+- The endpoint for the *production environment* is: https://distributor.paysafecard.com/v1/
+
+## Health check endpoint
+
+To test the stability and health of the endpoints in both the test  and production environments the business partner can issue an empty POST request to the following:
+- For the *test environment*: https://distributor.test.paysafecard.com/v1/orders/ping
+- For the *production environment*: https://distributor.paysafecard.com/v1/orders/ping
+
+The expected response (HTTP 200 + JSON): { "success": "true" }
+
+
+## HTTP status codes
+| Code | Short Description     | Description |
+| ---  | ---                   | ---         |
+| 200  | OK                    | The request was successful.|
+| 201  | Created               | Object successfully created.|
+| 400  | Bad Request           | Invalid data provided in the request.|
+| 401  | Unauthorized          | Invalid or expired API key.|
+| 404  | Not Found             | cashout feature disabled.|
+| 500  | Internal Server Error | This indicates a general technical error on paysafecard's end.|
+| 501  | Not Implemented       | Version feature not implemented.|
+| 502  | Bad Gateway           | Invalid response from upstream system.|
+| 503  | Service Unavailable   | Server overloaded.|
+| 504  | Gateway Timeout       | Timeout from upstream system.|
+
+```
+   400 Bad Request
+
+    {
+    "code": "invalid_request_parameter",
+    "message": "Correlation-ID is invalid: 'test123!'",
+    "number": 10028,
+    "param": "Correlation-ID"
+    }
+```
+
+# Voucher Print-out
+![pod_voucher](https://www.paysafecard.com/fileadmin/api/images/pod_voucher.png "PoD Voucher")
+
+Each paysafecard printed voucher (via the POS terminal) must contain the following data:
+|Name               |Description    
+|---                |---                                                                 
+|PIN-CODE           |The unique code used by the customer to pay at web shops.<br/><br/> 16 digits, numeric (preferably in 4 x 4 blocks).    
+|SERIAL NUMBER      |The unique idenfication number used for card holder inquiries.<br/><br/> 16 digits, numeric (leading zeros may be cut).
+|CARD TYPE          |(optional) The product identifier. For Pin-on-Demand the value: "classic" should be printed.
+|FACE VALUE         |The face value of PIN sold(e.g. 10.00, 25.00, 50.00, 100.00, etc).
+|CURRENCY           |The currency of the PIN sold (e.g. EUR, GBP, USD, PLN, etc).
+|PRINT DATE         |Date and time-stamp of the voucher print-out at the POS (e.g. YYYY:MM:DD - HH:MM:SS).
+|TERMINAL ID        |The POS identifier. Must be the value of the terminal ID provided in the request to paysafecard.
+
+**Important:** In addition, due to legal requirements the voucher print-out must contain a reference to the card issuer (e.g. PSC - Prepaid Services Company Ltd.),
+the applicable T & C’s and the paysafecard Hotline-number as well as the e-mail contact for any inquiries.
+
+Moreover, it should preferably contain also instructions for usage as shown in the sample above.
+
+# Confidentiality
+paysafecard assumes that the business partner will handle the PIN confidentially (it is only intended for the end customer).
+
+**Important:** The busines partner shall not store the unencrypted PIN in any server, system, application, database, log file or errorlog where it may be subject to fraud.
+
+If the business partner needs to store the PIN on its local systems for the voucher print-out, the PIN should be stored encrypted or in such a way that it is not easily accessible.
+
+# Pin-on-Demand Flow
+![transaction_flow_pod](https://www.paysafecard.com/fileadmin/api/images/pod_flow.PNG "Pin-on-Demand")
+
+# Group Pin-on-Demand Process
+1. The customer requests a paysafecard PIN for an available face value at a POS
+
+1. The POS employee selects the product and face value
+
+1. An `execute order` request is made to the paysafecard system
+
+1. paysafecard performs validation checks (credit limit, terminal limits) and a valid response is returned (the status of the order is **DELIVERED**)
+
+1. The voucher is printed by the business partner system containing the PIN, serial number, product, face value, currency, date, terminal Id and the T & C’s and handed out to the customer
+
+1. (**Optional**) A cancellation can be made via the `cancel order` request (the status of the order is **CANCELLED**)
+
+1. paysafecard performs validation checks (order status, date) and a valid response is returned
+
+1. A cancellation receipt is printed by the business partner system and handed out to the customer
+
+# Group Pin-on-Demand API Requests
+This section describes in detail all the requests available in the Pin-on-Demand REST API.
+
+Real API request examples can be viewed in the *Mock Server* by clicking in the requests names below.
+
+# Executing an order [/orders/]
+The `execute order` request is intended for the purchase of one (single) paysafecard PIN.
+<br>
+<br>
+**Note:** Using the optional HEADER-Parameter `Correlation-ID`, the business partner can set part of the parameter `id` on its own.
+
+- Max. length: 41 characters
+- Allowed characters: "a-z, A-Z, 0-9,-,_"
+- The value passed in this parameter must always be unique
+
+## execute order [POST]
+
+```
+POST /orders/
+```
+
++ Parameters
+
+    + `Correlation-ID`: `test_corr_001` (mandatory) - Using the HEADER-Parameter `Correlation-ID`, the business partner can set part of the parameter `id` on its own. <br></br><br></br> - Max. length: 41 characters <br></br> - Allowed characters: "a-z, A-Z, 0-9,-,_" <br></br> - The value passed in this parameter must always be unique
+
++ Request (application/json)
+
+    + Headers
+
+               Authorization: Basic cHNjXzdoT2lCTFc4bURSNFl3TWdDV3RPZHU4SWZXNjdBanU=
+            
+    + Attributes (execute order)
+    
+
++ Response 201 (application/json)
+            
+        {
+        "amount": 10,
+        "currency": "EUR",
+        "card": {
+            "amount": 10,
+            "currency": "EUR",
+            "serial": 1850422961,
+            "pin": "0381859494354749",
+            "product_id": "CLASSIC"
+        },
+        "distributor_id": "0009402006",
+        "order_id": "order_0009402006_test_corr_001",
+        "product_id": "CLASSIC"
+        }
+
+# Cancelling an order [/orders/{id}/]
+The `cancel order` request is used to undo a previous order. The paysafecard PIN associated with that order will be invalidated as well.
+
+There is a timeout setting which can be individually configured and defines the maximum timeframe between the `execute order` 
+and `cancel order` requests. This timeout is set by default to 5 minutes in the test environment and 20 days in the productive environment .
+<br>
+<br>
+A `cancel order` request is successful if:
+- The PIN has not been used (i.e, the order status is "DELIVERED")
+- The timeout setting has not elapsed
+
+**Note:** An order canceled using the `cancel order` request will not appear on the invoice to the busines partner, but will appear in the reconciliation file. 
+If the PIN is already invoiced, a credit note will be issued.
+
+## cancel order [DELETE]
+
+```
+DELETE /orders/id/
+```
+
++ Parameters
+
+    + id: `order_0009402006_test_corr_001` (required) - Id of a successful `execute order` request
+    + `Correlation-ID`: `test_corr_001` (required) - The `Correlation-ID` header can be used instead of the *order id* in the uri.  
+    
++ Request (application/json)
+
+    + Headers
+
+               Authorization: Basic cHNjXzdoT2lCTFc4bURSNFl3TWdDV3RPZHU4SWZXNjdBanU=
+    
+
++ Response 200 (application/json)
+            
+        {
+        "distributor_id": "0009402006",
+        "order_id": "order_0009402006_test_corr_001"
+        }
+
+# Retrieving an order [/orders/{id}]
+The `retrieve order` request is used to retrieve the status and information of a previous order.
+
+This request can be done at any time by the business partner.
+
+### Order Status
+
+|Value          |Description    |
+|---            |---                                                                 |
+|`DELIVERED`    |The order has been successfully processed.|
+|`REJECTED`     |The order has failed due to a business or technical error.|
+|`CANCELLED`    |The order has been successfully cancelled.|
+
+## retrieve order [GET]
+```
+GET /orders/id/
+```
+
++ Parameters
+
+    + id: `order_0009402006_XxVNh31ux78Y1eJRgGe6Y6qcbVNtnMbr` (required) - An order `id`
+    + `Correlation-ID`: `test_corr_001` (required) - The `Correlation-ID` header can be used instead of the *order id* in the uri.  
+    
++ Request (application/json)
+
+    + Headers
+
+               Authorization: Basic cHNjXzdoT2lCTFc4bURSNFl3TWdDV3RPZHU4SWZXNjdBanU=
+    
+
++ Response 200 (application/json)
+            
+        {
+        "amount": 10,
+        "currency": "EUR",
+        "card": {
+            "amount": 10,
+            "currency": "EUR",
+            "serial": 1850423010,
+            "product_id": "00028"
+        },
+        "distributor_id": "0009402006",
+        "order_id": "order_0009402006_gfGMpuuhPHhipuIMff6qOQM0MHmv90yb",
+        "product_id": "00028",
+        "shop_id": "shopdid_test",
+        "terminal_id": "test_terminal_123",
+        "order_status": "DELIVERED",
+        "delivery_type": "RETURN"
+        }
+
+# Cancelling a card [/cards/{sn}/]
+The `cancel card` request is used to invalidate a paysafecard PIN, using the serial number.
+
+**Note:** `cancel card` does not cancel a previous order, it only invalidates the paysafecard PIN.
+
+Therefore it shall only be used when the timeout setting for cancelling an order (20 days) has elapsed, as 
+the cards will not appear in the reconciliation file and will result in a credit note.
+<br>
+<br>
+A `cancel card` request is successful if:
+- The PIN has not been used
+
+## cancel card [DELETE]
+
+```
+DELETE /cards/sn/
+```
++ Parameters
+
+    + sn: `1850428953` (required) - Serial number of a successful `execute order` request
+
++ Request (application/json)
+
+    + Headers
+
+               Authorization: Basic cHNjXzdoT2lCTFc4bURSNFl3TWdDV3RPZHU4SWZXNjdBanU=
+               
++ Response 200 (application/json)
+            
+        {
+        "terminal_id": "danade_term_1"
+        }
+
+# Group Pin-on-Demand API Response Objects
+Below, all possible response objects for the Pin-on-Demand REST API are listed with the corresponding description.
+
+|Parameter|Description|Requests|
+|---|---|---|
+|`amount`|The face value of the request.|`execute order` `retrieve order`|
+|`card[amount]`|The face value of the PIN.|`execute order` `retrieve order`|
+|`card[currency]`|The currency (ISO 4217) of the PIN.|`execute order` `retrieve order`|
+|`card[serial]`|The serial number of the PIN.|`execute order` `retrieve order`|
+|`card[PIN]`|The unique PIN for the end customer to be used to pay at webshops.|`execute order`|
+|`card[product_id]`|The product id of the PIN.|`execute order` `retrieve order`|
+|`distributor_id`|The business partner ID assigned by paysafecard.|`execute order` `retrieve order` `cancel order`|
+|`order_id`|Identifies the order. See the section ["Order id Format"](#order_id) for more information|`execute order` `retrieve order` `cancel order`|
+|`shop_id`|Identifies the shop from where the request was made. |`retrieve order`|
+|`terminal_id`|Identifies the terminal from where the request was made.^1^|`retrieve order` `cancel card`|
+|`order_status`|The status of the order (`DELIVERED`, `REJECTED`, `CANCELLED`.|`retrieve order`|
+|`delivery_type`|To which channel should was the PIN be delivered. For Pin-on-Demand, the value to be used is always "RETURN". |`retrieve order`|
+|`order_error_code`|The original order error code.|`retrieve order`|
+> ^1^ Alphanumeric English alphabet: [a-z] [A-Z] [0-9] and the special characters: Hyphen(-), Space( ), Underscore (_) (Dot (.) and plus (+).
+# Group Pin-on-Demand Error Codes
+Below, all possible error codes for the Pin-on-Demand REST API are listed with the corresponding description.
+
+|Code|Number|Message|
+|---|---|---|
+|`general_technical_error`          |10007|General technical error
+|`invalid_api_key`                  |10008|Authentication failed
+|`certificate_not_found`            |33002|Certificate not found
+|`certificate_not_valid`            |33003|Certificate is not valid
+|`invalid_card_state`               |1004 |Card has an incorrect state
+|`duplicate_correlation_id`         |2001 |Correlation-ID Header must be unique
+|`not_available`                    |3100 |Product not available
+|`order_not_found`                  |3102 |Order not found
+|`product_not_allowed`              |3105 |Product not allowed
+|`credit_limit_reached`             |3144 |Credit limit reached
+|`invalid_currency_distributor`     |3151 |Invalid currency
+|`invalid_card_type`                |3153 |Invalid card type
+|`cancel_order_already_processed`   |3154 |Cancel order already processed
+|`terminal_blocked`                 |3155 |Terminal is blocked
+|`order_state_not_valid_for_cancellation`                 |3156 |Order is in a state where it cannot be cancelled
+|`cancel_order_too_late`            |3158 |Cancel order too late
+|`terminal_limit_1_exceeded`        |3174 |Terminal limit 1 exceeded
+|`terminal_limit_2_exceeded`        |3175 |Terminal limit 2 exceeded
+|`terminal_limit_3_exceeded`        |3176 |Terminal limit 3 exceeded
+|`terminal_limit_4_exceeded`        |3177 |Terminal limit 4 exceeded
+|`terminal_limit_5_exceeded`        |3178 |Terminal limit 5 exceeded
+|`shop_limit_1_exceeded`            |3188 |Shop limit 1 exceeded
+|`shop_limit_2_exceeded`            |3189 |Shop limit 2 exceeded
+|`shop_limit_3_exceeded`            |3190 |Shop limit 3 exceeded
+|`shop_limit_4_exceeded`            |3191 |Shop limit 4 exceeded
+|`shop_limit_5_exceeded`            |3192 |Shop limit 5 exceeded
+
+|Code|Number|Message|Param
+|---|---|---|---
+|`invalid_request_param`    |10028|Valid values are: ACCOUNT,PHONE,ATM,NONE,CIVIL_NUMBER            |`id_type`
+|`invalid_request_param`    |10028|size must be between 5 and 5                                     |`product_id`
+|`invalid_request_param`    |10028|Correlation-ID is invalid: 'xxxxxx%!'                            |`Correlation-ID`
+|`invalid_request_param`    |10028|Correlation-ID is longer than the maximum allowed 41 characters  |`Correlation-ID`
+
+Other errors can be communicated to the customer as “general technical error”. 
+
+In general when one of these errors occur, the business partner should contact paysafecard for more information via [*integration@paysafecard.com*]() if the account is not live.
+
+For live accounts, [*techsupport@paysafecard.com*]() should be contacted.
+
+# Group Order id Format
+<a name="order_id"></a> The order `id` can take two different formats, depending if the `Correlation-ID` was used or not.
+
+1. When **no** `Correlation-ID` is provided:
+
+    order_did_*random-string*
+    
+    Ex: *order_0009402006_PQ4zB0QrXZWrcvpZLIp5nW4s7ctz2fvf*
+<br><br>
+
+2. When a `Correlation-ID` is provided:
+
+    order_did_*correlation-id*
+
+    Ex: *order_0009402006_test_corr_001*
+
+# Group How to handle a lost response
+In case the business partner does not get a response back to an `execute order` request, a lost response mechanism
+shall be put in place to avoid order mismatches between the business partners system and paysafecard.
+
+The below diagram show thes recommended implementation for the the lost response scenario. 
+![lost_response_pod](https://www.paysafecard.com/fileadmin/api/images/last_response_pod.JPG "How to handle a lost response")
+
+**Note:** It is crucial that the *Correlation-ID* is used, so the `cancel order` can be made using the correct *order id*.
+
+# Group Fraud Prevention and Limits
+paysafecard assumes that the busines partner itself has implemented several mechanisms in order to detect and prevent fraud.
+
+As an additional service, paysafecard provides a set of tools to support this:
+- Several terminal limits are set and tf a certain terminal exceeds the allowed limit, the sales will be blocked.
+- Terminal limits can be set globally or on terminal level.
+- Limit notification: when a specific terminal has reached its limit, both paysafecard and the business partner will be informed
+    - paysafecard employees will receive a notification
+    - The business partner will receive the error “terminal_limit_1_exceeded” during the executing of the order.
+
+When limits are reached the following procedure needs to be followed:
+- The business partner must investigate the issue
+- If no fraud is detected
+    - Wait for the limit to reset or reset it manually using use the [Distributor Service Center](https://servicecenter.paysafecard.com/login/#/?resource=DistributorCenter&response_type=code&redirect_uri=https%3A%2F%2Fservicecenter.paysafecard.com%2Fdistributor%2F&client_id=c4172bc9-5e67-41c5-9278-4220ffca4c03)
+    - Inform paysafecard and request a limit increase
+- If fraud is detected, inform paysafecard to temporarily disable the terminal (on paysafecard side)
+
+## Global and terminal limits
+The Pin-on-Demand system allows configuration up to 5 terminal limits on global and on terminal level.
+<br>
+<br>
+By default only one global maximum limit of 2400 EUR (in each currency) per 12 hours is applied. 
+If this limit is reached the terminal will be temporarily blocked.
+<br>
+<br>
+Clarification using the 12 hour limit as example:
+
+The 12 hour limit is not limited to 1 day but can start at 16:00 and end at 04:00 on the following day.
+
+When a terminal requests a paysafecard it receives a timestamp and the 12h limit is counted from this first time stamp. 
+If a terminal does not sell for 2 days and reconnects on day 3 it will again receive a new timestamp (e.g. 11:00).
+This also applies to all limits available.
+<br>
+<br>
+Currently there are 5 Limits available:
+|Limit|Time frame|
+|---|---|
+|Limit 1|24 hours|
+|Limit 2|5 minutes|
+|Limit 3|2 hour|
+|Limit 4|6 hours|
+|Limit 5|12 hours|
+<br>
+<br>
+Global and terminal specific limits can be negotiated with paysafecard. Please note:
+- The limits should be configured so that in no case regular sales will be blocked. The limits are there for fraud prevention only.
+- The limits will automatically release themselves as explained above. Alternatively the limits can be reset in the [Distributor Service Center](https://servicecenter.paysafecard.com/login/#/?resource=DistributorCenter&response_type=code&redirect_uri=https%3A%2F%2Fservicecenter.paysafecard.com%2Fdistributor%2F&client_id=c4172bc9-5e67-41c5-9278-4220ffca4c03).
+- Please note that the terminal IDs sent to paysafecard must be **unique**. If different terminals are identified by the same ID, they count for one single terminal and will quickly run into limits. 
+
+## Terminal limit CSV example
+The business partner has the possibility to share a list of terminals with paysafecard upfront. In this file the limits for specific “high load” or “high risk” terminals can be communicated to paysafecard.
+
+Requests for limit changes must be sent to [*distribution@paysafecard.com*]().
+<br>
+<br>
+The filename of the .csv file must have the following format:
+
+[distributorid].csv
+
+Example: 0009382795.csv
+<br>
+<br>
+H record - Identifies the header record
+```
+| distributor_id
+| |
+H;0009382795`
+```
+
+D record - Identifies the detail record
+```
+| terminal_id
+| |     terminal_limit 1 (24 hour) in currency of distributor
+| |     |    terminal limit 2 (5 mins) in currency of distributor
+| |     |    |   terminal limit 3 (2 hour) in currency of distributor
+| |     |    |   |    terminal limit 4 (6 hour) in currency of distributor
+| |     |    |   |    |   terminal limit 5 (12 hours) in currency of distributor
+| |     |    |   |    |   |
+D;39483;1700;300;1000;500;800
+```
+
+Last record - Identifies the footer record (End of File) 
+```
+|   number of lines in file (including this record)
+|   |
+EOF;5
+```
+
+Full example
+```
+H;0009382795
+D;39483;1700;300;1000;;
+D;39486;2000;500;;;
+D;39487;3000;;1000;500;1500
+EOF;5
+```
+**Note:** If one of the limits in the file is left empty, the general limits will apply.
+
+## Shop Limits
+Shop Limits have been implemented to allow business partners that have several terminals in one shop, to have a limit not only on
+the terminal but also on the whole shop. This can be useful for supermarkets where each cash register has it’s own
+terminal ID. 
+
+The shop limit is based on the highest terminal limit in one shop and is configured as a percentage. For example if
+the 12 hour terminal limit in a shop with 4 terminals is 500€ for each terminal and the shop limit is 50%, the shop (the 4
+terminals together) can sell up to 750€, while each terminal can sell 500€.
+
+The shop limits can be agreed with paysafecard and can be set individually for each specific limit (limits 1 to 5 as shown above for the global and terminal limits).
+
+## Temporary card locking
+The temporary card locking guarantees that cancelling the order or the card (by either `cancel order` or `cancel card`) will succeed for the period that the lock is enabled.
+(when a PIN is already used, the cancellation will fail.
+
+If the feature is enabled (by default it is always disabled), all PINs sold over Pin-on-Demand will be temporarily locked, meaning they cannot be used by the customer who purchased the card until the temporary card lock time elapses. 
+
+The recommended setting is 5 minutes, as most fraudulent card sale activities are detected within a rather short period of time, this feature should considerably lower the risk of POS fraud.
+
+**Note:** Enabling this feature can only be done at paysafecard side.
+
+If the temporary card locking is enabled, the business partner must add an extra text printed on the voucher, explaining that it takes some time before the customer can use the PIN.
+
+# Group Shop Registration
+
+Due to regulatory reasons, we are required to provide acurate information where the Paysafe product sale is taking place. To achieve it, following information needs to be known:
+- **distributor** - provides the terminal infrastructure
+- **shop** - location where the terminal is operated and the customer buys the Paysafe product
+- **terminal** - device used to sell Paysafe product
+- **products** - Paysafe products sold at the shop
+
+Up to now, there have been exceptions allowing orders go through although the provided information was not complete, however due to the tightening of the regulations, such orders will be rejected.
+<br><br>
+Besides adhering to the regulations, such information benefits all parties offering a more accurate representation of the distributor network. Shops are displayed correctly in Storelocator, customers will be directed to the
+appropriate shop based on the provided information, more information supporting fraud issues.
+<br><br>
+To assure the highest correctness of such information, Paysafe is offering the possibility that distributors provide such details through **Shop Registration** process. This information can be provide via three different files.
+- Shop Information file
+- Terminal Information file
+- Product Information file
+
+Shop Information file includes following columns:
+```
+Shop ID*, 
+Shop Name*, 
+Address*, 
+City*, 
+Zip Code*, 
+Country*, 
+Company Name, 
+Registration Number, 
+Country of Incorporation, 
+Year of Incorporation, 
+Main Contact Name, 
+Main Contact Phone, 
+Main Contact Address, 
+Main Contact Email, 
+Email Address, 
+Phone Number, 
+Longitude, 
+Latitude, 
+Filename Logo, 
+Opening Hours, 
+Time Location, 
+Type of Business, 
+Retailer ID, 
+Main Contact Position, 
+Person 1 Name, 
+Person 1 Function, 
+Person 1 Address, 
+Person 1 Birthdate, 
+Person 1 Birthplace, 
+Person 2 Name, 
+Person 2 Function, 
+Person 2 Address, 
+Person 2 Birthdate, 
+Person 2 Birthplace, 
+Person 3 Name, 
+Person 3 Function, 
+Person 3 Address, 
+Person 3 Birthdate, 
+Person 3 Birthplace, 
+Person 4 Name, 
+Person 4 Function, 
+Person 4 Address, 
+Person 4 Birthdate, 
+Person 4 Birthplace
+```
+
+Value for **Country** parameter needs to be provided in the form of the two letter country code (**ISO 3166-1 alpha-2**), i.e. for **Germany**
+it should be **DE**.
+
+`Note: If you do not want to provide values for the optional parameters, you must also exclude the column headers for those parameters.
+Another option is to provide the column headers, but you need to provide empty fields separated by comma.`
+
+Terminal Information file includes the following columns:
+```
+Shop ID*, 
+Terminal ID*
+```
+
+Product Information file includes the following columns:
+```
+Shop ID*, 
+Product ID*
+```
+`* - indicates mandatory parameter`
+
+
+## File Naming Convention
+
+Expected file type is **CSV** and the maximum file size is 10MB and the first line of the file must contain the column names.
+
+Format of the file name is **DID_Information-Type.csv**. Information-Type can be Shop, Terminal, Product - depending on what information you want to provide. i.e. DID 000909999 uploading files to provide information, the file name would be:
+- 000909999_Shop.csv
+- 000909999_Terminal.csv
+- 000909999_Product.csv
+
+`It is important to write the full DID in the file name, including the leading zeros.`
+
+## Instructions for file upload
+
+These files can be provided by the distributors via two different channels, namely **SFTP Upload** and **Distribution Service Center (DSC) Upload**
+
+
+
+## SFTP Upload
+
+To provide the file via SFTP upload, drop the information file under the folder shopfiles of the SFTP user for the respective DID. i.e. DID 000909999
+
+- SFTP Server: sftp.paysafecard.com
+- Port: 22
+- Username: 000909999
+- Path: /home/000909999/shopfiles
+
+This channel can process machine to machine communication and can be fully automated.  
+
+## DSC Upload
+
+Login at https://servicecenter.paysafecard.com/ with the acquired credentials during the onboarding process and navigate to the **Shop Registration** menu. There you will see three upload options, Shop, Terminal and Product.
+
+This channel provides a great user interface and guidance throughout the registration process.
+
+# Group Reconciliation / Sales Reporting 
+By default on a daily basis the, the business partner will receive a detailed sales report (in csv), containing all orders of last day. Orders successfully executed as well as cancelled orders will be included in the reconciliation file.
+
+The reconciliation files will be available on a SFTP at 3:00 for the previous day and should be picked up by the business partner. The SFTP will be a paysafecard SFTP and the distributor will have to pick up the files from the paysafecard SFTP. 
+
+The distributor should process these reports on a daily basis in order to prevent any inconsistencies between both systems. 
+Should there be orders delivered to the distributor but not sold, the distributor should make a `cancel order` request, otherwise they will be invoiced based on the reconciliation file.
+
+**Important:** paysafecard will invoice all orders that have been successfully executed.  
+
+Filename: ``YYYY-MM-DD_DID.CSV``
+
+Example: 2014-05-05_0009300000.CSV
+
+## Reconciliation Flow
+![reconciliation_flow](https://www.paysafecard.com/fileadmin/api/images/recon_flow.png "Reconciliation Flow")
+
+## Reconciliation File records
+H1 record - Identifies the header 1 record
+```
+|  distributor_id    
+|  |
+H1;93827495
+```
+
+H2 record - Identifies the header 2 record 
+```
+|  reporting period (start) 
+|  |  
+|  |          reporting period (end) 
+|  |          |
+H2;2011-11-01;2011-11-03 
+```
+
+H3 record - Identifies the header 3 record 
+```
+|  invoice id (if recon is sent with invoice) 
+|  |                   invoice currency 
+|  |                   |   total invoice amount 
+|  |                   |   |    
+H3;90045466/06.11.2011;EUR;500.00
+```
+
+D record - Indicates the detail record 
+```
+| Distributor order id 
+| |     Utc offset 
+| |     |   Order date and time 
+| |     |   |                   Distributor id 
+| |     |   |                   |          Retailer id 
+| |     |   |                   |          |   Shop id
+| |     |   |                   |          |   |   Terminal id 
+| |     |   |                   |          |   |   |   Customer identification type 
+| |     |   |                   |          |   |   |   |    Delivery type 
+| |     |   |                   |          |   |   |   |    |      Country code
+| |     |   |                   |          |   |   |   |    |      |  Face value  
+| |     |   |                   |          |   |   |   |    |      |  |     Product id 
+| |     |   |                   |          |   |   |   |    |      |  |     |   Serial 
+| |     |   |                   |          |   |   |   |    |      |  |     |   |                Order status 
+| |     |   |                   |          |   |   |   |    |      |  |     |   |                |         Error code 
+| |     |   |                   |          |   |   |   |    |      |  |     |   |                |         |          
+D;93837;-60;2011-10-12 22:25:23;0000006938;304;506;309;NONE;RETURN;DE;10.00;304;6954286854268596;DELIVERED;0
+```
+
+F record - Identifies the footer record (End of File)
+```
+|   number of lines (including this record) 
+|   |
+EOF;56 
+```
+
+Full example
+```
+H1;93827495 
+H2;2011-11-01;2011-11-3 
+H3;90045466/06.11.2011;EUR;500.00 
+D;93837;-60;2011-10-12 22:25:23;0000006938;304;506;309;NONE;RETURN;DE;10.00;304;6954286854268596;DELIVERED;0 
+EOF;56 
+```
+
+# Group Annex: Fiscal Code Usage
+The Pin-on-Demand API supports orders where a fiscal code must be provided by the customer during sales processing at the POS.
+This can be done to either make a direct top-up to the customer’s account, or to print a PIN which is associated to the customer based on the fiscal code provided.
+
+### Flow and process description
+
+1. The customer requests a paysafecard PIN for an available face value at a POS and shows their fiscal code
+2. The POS employee selects the product and face value
+3. The POS employee scans/enters the customer fiscal code
+4. An `execute order` request is made to the paysafecard system, including the customer fiscal code
+5. paysafecard performs validation checks and a valid response is returned (the status of the order is **DELIVERED**)
+    * 5.1 For direct top-up, this includes the customer’s credit limit, terminal limits, account status and fiscal code
+    * 5.2 For a normal PIN request, this only includes the fiscal code
+6. The voucher is printed by the business partner system containing the serial number, product, face value, currency, date, terminal ID and the T & C’s and handed out to the customer
+    * 6.1 For a PIN sale, the PIN is printed normally
+    * 6.2 For a direct top-up, no PIN is printed
+7. (**Optional**) A cancellation can be made via the `cancel order` request during the cooldown period (the status of the order is **CANCELLED**)
+8. paysafecard performs validation checks (order status, order id, date) and a valid response is returned
+9. A cancellation receipt is printed by the business partner system and handed out to the customer
+
+**Note**: If the amount is loaded directly into the customer my paysafecard account, the implementation of `cancel order` 
+at the POS is mandatory to avoid possible fraud cases.
+
+**POS flow**
+![pod_tax_id_pos](https://www.paysafecard.com/fileadmin/api/images/pod_tax_id_pos.png "tax id pos")
+
+**Customer flow**
+![pod_tax_id_customer](https://www.paysafecard.com/fileadmin/api/images/pod_tax_id_customer.png "tax id customer")
+
+
+# Executing an order [/orders]
+To accommodate this, the following changes must be made to the `execute order` request
+
+1. The parameter `delivery_type` needs to be set to
+    * 1.1 "ACCOUNT" for "direct top-up"
+    * 1.2 "RETURN" for PIN sale
+2. The `customer` parameter must contain:
+    * 2.1 the `id_type` field set to "CIVIL_NUMBER"
+    * 2.2 the `id` field set to the fiscal code (all upper case letters without spaces)
+
+A request example and response can be found in detail below:
+
+## execute order with fiscal code [POST]
+
+```
+POST /orders/
+```
+
+**Note**: The values for `delivery_type` and `id_type` will be reflected in the reconciliation file.
+If this fields/values are used in any script for reconciliation purposes, please update them accordingly.
+
++ Parameters
+
+    + `Correlation-ID`: `test_corr_001` (optional) - Using the optional HEADER-Parameter `Correlation-ID`, the business partner can set part of the parameter `id` on its own. <br></br><br></br> - Max. length: 41 characters <br></br> - Allowed characters: "a-z, A-Z, 0-9,-,_" <br></br> - The value passed in this parameter must always be unique
+
++ Request (application/json)
+
+    + Headers
+
+               Authorization: Basic cHNjXzdoT2lCTFc4bURSNFl3TWdDV3RPZHU4SWZXNjdBanU=
+            
+    + Attributes (execute order fiscal code)
+    
+
++ Response 201 (application/json)
+            
+        {
+        "amount": 10,
+        "currency": "EUR",
+        "card": {
+            "amount": 10,
+            "currency": "EUR",
+            "serial": 1846671515,
+            "pin": "0465704127468232",
+            "product_id": "CLASSIC"
+        },
+        "product_id": "CLASSIC",
+        "distributor_id": "0009402006",
+        "order_id": "order_0009402006_f5d5a4efaf62482494c82cb7f767dc30"
+        }
+
+# Group Annex: Fiscal Code related Error Codes
+Below, all additional error codes for the Pin-on-Demand REST API related to the fiscal code usage 
+are listed with the corresponding description.
+
+|Code|Number|Message|
+|---|---|---|
+|`illegal_customer_id_type`                             |10026|CustomerId type CIVIL_NUMBER is not allowed in country XX.
+|`account_not_found_for_mobile`                         |3036|No valid Account found with '{0}'='{1}'.
+|`transaction_limit_reached_sdd_upgrade_possible`       |3052|With this topup your balance would be higher than your remaining spending limit.
+|`civil_number_enforced_but_not_provided`       |31621|The CIVIL_NUMBER must be provided for this distributor.
+
+
+Other errors can be communicated to the customer as “general technical error”. 
+
+In general when one of these errors occur, the business partner should contact paysafecard for more information via [*integration@paysafecard.com*]() if the account is not live.
+
+For live accounts, [*techsupport@paysafecard.com*]() should be contacted.
+
+# Data Structures
+
+## TypedObject (object)
+
+## execute order (TypedObject)
++ amount: 10.00 (number, required) - The PIN face value (precision must be 2 digits after the decimal separator).
+The list of all possible face values is provided with the data package.
++ currency: EUR (required) - ISO 4217 (3 letter ISO currency code).
++ country: AT (required) - The code (ISO 3166-1) that identifies the country of the request.
+The country code is provided with the data package.
++ product_id: 00028 (string, required) - The id of the product that is requested. The product id stays the same for different face values.
+Available product id’s can be found in the distribution contract with paysafecard and in the data package. 
++ delivery_type: RETURN (string, required) - To which channel should the PIN be delivered. 
+For Pin-on-Demand, the value "RETURN" must always used in order to return the 16-digit PIN.
++ utc_offset: +00:00 (string, required) - The difference between the distributor time zone and UTC.
++ shop_id: shopidtest (string, required ) - Identifies the shop from where the request is made.
+Provided by the business partner.
++ terminal_id: terminalidtest (string, required) - Identifies the terminal from where the request is made. One shop can have multiple terminals.
+**Important:** It is required that each terminal has a unique id. Provided by the business partner.
++ retailer_id: retaileridtest (string, optional) - Can be used to distinguish retail channels. One distributor can have multiple retailers. 
+Can also be used to identify sub-distributors. Provided by the business partner.
++ customer (object) 
+    + `id_type`: NONE (required) - The customer identification type.
+    For Pin-on-Demand, the value "NONE" must always used.
++ capture: true (boolean, required) - Capture flag.
+For Pin-on-Demand, the value "true" must always be used, as the `execute order` request is a one step procedure.
+
+## execute order fiscal code (TypedObject)
++ amount: 10.00 (number, required) - The PIN face value (precision must be 2 digits after the decimal separator).
+The list of all possible face values is provided with the data package.
++ currency: EUR (required) - ISO 4217 (3 letter ISO currency code).
++ country: AT (required) - The code (ISO 3166-1) that identifies the country of the request.
+The country code is provided with the data package.
++ product_id: 00028 (string, required) - The id of the product that is requested. The product id stays the same for different face values.
+Available product id’s can be found in the distribution contract with paysafecard and in the data package. 
++ delivery_type: ACCOUNT or RETURN (string, required) - To which channel should the PIN be delivered.
+"ACCOUNT" loads the PIN directly into the customer my paysafecard account identified by the fiscal code.
+"RETURN" returns a PIN.
++ utc_offset: +00:00 (string, required) - The difference between the distributor time zone and UTC.
++ shop_id: shopidtest (string, required ) - Identifies the shop from where the request is made.
+Provided by the business partner.
++ terminal_id: terminalidtest (string, required) - Identifies the terminal from where the request is made. One shop can have multiple terminals.
+**Important:** It is required that each terminal has a unique id. Provided by the business partner.
++ retailer_id: retaileridtest (string, optional) - Can be used to distinguish retail channels. One distributor can have multiple retailers. 
+Can also be used to identify sub-distributors. Provided by the business partner.
++ customer (object) 
+    + `id_type`: CIVIL_NUMBER (required) - The customer identification type.
+    + `id`: LTCQVQ01H27H501Y (string, required) - The customer fiscal code (All upper case letters without spaces).
++ capture: true (boolean, required) - Capture flag.
+For Pin-on-Demand, the value "true" must always be used, as the `execute order` request is a one step procedure.

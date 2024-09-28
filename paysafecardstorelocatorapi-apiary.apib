@@ -1,0 +1,473 @@
+FORMAT: 1A
+HOST: https://apitest.paysafecard.com/v2
+
+# paysafecard Store Locator API
+
+# Technical Integration
+This section provides a technical introduction to the paysafecard Store Locator REST API.
+
+## About the API
+The paysafecard Store Locator API provides a list and details of payment points around a geographic location.
+
+The payment points can be filtered by various criteria and the results are shown in JSON format.
+
+<br><br>
+The paysafecard Store Locator REST API follows <a href="http://en.wikipedia.org/wiki/Representational_state_transfer" target="_blank">*RESTful*</a> design principles making it easy to understand and integrate the API.
+Representational State Transfer (REST) is a software architecture style, consisting of guidelines for creating scalable web services.
+
+RESTful systems typically communicate over the Hypertext Transfer Protocol with the same HTTP verbs (GET, POST, PUT, DELETE, etc.) used by web browsers to retrieve web pages and send data to remote servers.
+
+It also facilitates solid and universally accepted foundations like [*http basic authentication*](http://en.wikipedia.org/wiki/Basic_access_authentication), [*http verbs*](http://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol#Request_methods), [*JSON*](http://en.wikipedia.org/wiki/JSON) and [*CORS*](http://en.wikipedia.org/wiki/Cross-origin_resource_sharing).
+
+## Versioning
+Every time there is backwards-incompatible change to the API, a new major version will be released. This major version is part of the URL path.
+The current major version is *v2*. Unless informed by our technical support department that we are dropping support for a particular API version, you do not need to switch API versions.
+
+## Prerequisites
+A connection to the paysafecard Store Locator API is successful if the following prerequisites are fulfilled:
+- API key for request authentication provided by paysafecard.
+- Authorization of the server IP address in the production environment (if a 403 error is received when trying to access the service, it is likely that the IP address is not yet allowed to access).
+- Content-type: Please make sure that the content type in the HTTP header, when submitting requests, is set to **Content-Type: application/json**
+- Character encoding needs to be in UTF-8
+
+Connect to our services only via respective FQDNs
+Do not cache DNS resolutions of paysafecard FQDNs in your infrastructure (Client servers, Resolvers etc.). The DNS resolutions should expire as soon as the TTL is reached.
+In case your application is based on Java, please check your TTL setup on JVM, the DNS caching behavior needs to be adjusted to:
+networkaddress.cache.ttl=60 (TTL 60 seconds). Please note that, this parameter needs to be persisted in the JVM security config
+If your application is based on any other framework that caches DNS resolution, please make sure to set the DNS TTL to no more than 60 seconds or rely on the TTL set by our DNS records
+
+Honoring DNS changes will make sure that you connect always to our active system.
+
+## API key authentication
+Every request to the paysafecard API is authenticated using an API key.
+- The value of the **API key needs to be base64 encoded** when transmitted in the HTTP header!
+- Set the key as the username. [*HTTP basic authentication*](http://en.wikipedia.org/wiki/Basic_access_authentication)
+- Your API key may only be used from your backend systems.
+- **Please note:** Your API key must be kept secured - never expose the API key to anybody!
+
+Below is an example of how the API key is supposed to be set (please note that the example cannot be used for requests).
+
+```
+Authorization: Basic cHNjXzYydXdPYkJnRkxn000XeXZwSlMtNE9weXRtUS1XN3Y=
+```
+
+## Rate limits
+For security reasons we will have rate limits in place:
+ - 300 seconds
+ - 2000 requests/IP
+ - 400 requests/IP per minute
+ - 600 second block if limit is reached 
+
+## Test Environment and Endpoints
+Every new business partner needs to first integrate the API in the test environment.
+Once the integration is finished, a UAT(User Acceptance Test) needs to be done in order to ensure a seemless integration flow.
+
+- The endpoint for the *test environment* is: https://apitest.paysafecard.com/v2/shops/
+- The endpoint for the *production environment* is: https://api.paysafecard.com/v2/shops/
+
+## Interface Guidelines
+The paysafecard Store Locator API must be implemented accordingly to the interface guidelines provided by the paysafecard integration team with the test data package and the instructions in this document.
+
+## Store Locator API Request [/shops?lat={lat}8&long={long}&radius={radius}&limit={limit}&moneyFlowDirection={moneyFlowDirection}&currency={currency}]
+
+### locate stores [GET]
+
++ Parameter
+
+    + lat: `48.3705878` (big decimal, optional) - Latitudinal search position (defaults to null). <br></br>
+    + long: `10.8987651` (big decimal, optional) - Longitudinal search position (defaults to null). <br></br>
+    + radius: `100` (big decimal, optional) - Radius in meters around lat/long to search for stores (defaults to 50000). <br></br>
+    + limit: `2` (String, optional) - Number of results to return (defaults to 20, optional).  <br></br> Max. number of results allowed is 1000. <br></br>
+    + moneyFlowDirection: `IN` (String, optional) - Filter to be applied to the stores. <br></br> Available values: `IN` is to be used for Paysafecash  and `OUT` for Paysafecash cashout. To filter for paysafecard stores, this parameter must be left out from the request. <br></br> 
+    + currency: `EUR` (String,optional) - In case the API key has multiple currencies the partner needs to specify which one the request is made for. <br></br>
++ Request
+
+    + Headers
+            
+            Authorization: Basic cHNjXzYydXdPYkJnRkxn000XeXZwSlMtNE9weXRtUS1XN3Y=
+            Content-Type: application/json
+
++ Response 200 (application/json)
+
+        [
+        {
+        "id": 3713,
+        "distributorId": 78,
+        "name": "Agip Tankstelle",
+        "address": "Allgäuer Str. 66",
+        "city": "Reutte",
+        "recommended": "false",
+        "zipCode": "6600",
+        "countryCode": "AT",
+        "longitude": 10.72036517,
+        "latitude": 47.49912168,
+        "phone": null,
+        "logoUrl": "https://www.paysafecard.com/include/posicon/special/www.orf.at",
+        "logoThumbnailUrl": "https://www.paysafecard.com/include/posicon/agip.gif",
+        "pointOfSaleType": {
+            "id": 697747,
+            "name": "default.gif",
+            "logoFilePath": "default.gif",
+            "idAsString": "697747"
+        },
+        "pointOfSaleProducts": [
+            {
+                "shortName": "mdl",
+                "longName": "mdirectload",
+                "productCode": "023"
+            }
+        ],
+        "pointOfSaleRatings": [],
+        "distanceFromOrigin": 97810.0,
+         "moneyFlowDirections": ["IN"],
+         "openingHours":null,
+        "excludeFromTransaction": false
+        },
+        {
+        "posId": 2551988,
+        "distributorId": 271,
+        "name": "Eni Service Station",
+        "address": "Allgauer Strasse 66",
+        "city": "Reutte",
+        "recommended": "true",
+        "zipCode": "6600",
+        "country": "AT",
+        "longitude": 10.7201985,
+        "latitude": 47.4990925,
+        "phone": null,
+        "logoUrl": "https://www.paysafecash.com/fileadmin/posicon/marker/default.png",
+        "logoThumbnailUrl": null,
+         "pointOfSaleType": {
+            "id": 697747,
+            "name": "default.gif",
+            "logoFilePath": "default.gif",
+            "idAsString": "697747"
+        },
+         "pointOfSaleProducts": [
+            {
+                "shortName": "psc",
+                "longName": "paysafecard",
+                "productCode": "001"
+            }
+        ],
+        "pointOfSaleRatings": [],
+        "distanceFromOrigin": 231083.0,
+        "moneyFlowDirections": ["IN"],
+        "openingHours":null,
+        "excludeFromTransaction": false
+        }
+        ]
+
+
+# Group Store Locator API Response Parameters
+| Parameter             | Type      | Example                                                             | Description                          
+| ---                   | ---       | ---                                                                 | ---                                  
+| `id`                  | number    | 3713                                                                | The payment point ID.
+| `distributorId`       | number    | 78                                                                  | The payment point distributor id.
+| `shopId`              | number    | 00005545                                                            | The payment point's shop ID.
+| `name`                | string    | Agip Tankstelle                                                     | The payment point name.
+| `address`             | string    | Allgäuer Str. 66                                                    | The payment point address.
+| `city`                | string    | Reutte                                                              | The payment city.
+| `recommended`         | boolean   | false                                                               | The payment point recommended status. 
+| `zipCode`             | string    | 6600                                                                | The payment point postal code.
+| `countryCode`         | string    | AUT                                                                 | The payment point country.
+| `longitude`           | number    | 10.72036517                                                         | The payment point longitudinal coordinates.
+| `latitude`            | number    | 47.49912168                                                         | The payment point latitudinal coordinates.
+| `phone`               | number    | +43123123123                                                        | The payment point's phone number.
+| `logoUrl`             | string    | https://www.paysafecard.com/include/posicon/agip.gif                | The payment point logo's url.
+| `logoThumbnailUrl`    | string    | null                                                                | The payment point's thumbnail logo URL.  
+| `pointOfSaleType`     | object    | {id: 744, name: "ch_bp", logoFilePath: "bp.gif", idAsString: "7444"}| The payment point's logo information.                                               
+| `pointOfSaleProducts` | array     | [{ shortName: "mdl", longName: "mdirectload", productCode: "003"}]  | The payment point's products.
+| `pointOfSaleRatings`  | array     | []                                                                  | The payment point customer feedback.
+| `distanceFromOrigin`  | number    | 97810.0                                                             | The payment point distance from the origin coordinates, in meters.
+| `moneyFlowDirections` | array     | ["IN"]                                                              | The payment point's money flow directions.
+| `openingHours`        | string    | null                                                                | The payment point's opening hours.
+| `excludeFromTransaction`| boolean | false                                                               | The payment point's transaction exclusion.
+
+
+# Group Store Locator API Error Codes
+|Code                           |Number (optional)  |HTTP Status    |Description          |
+|---                            |---                |---            |---                  |
+|`general_technical_error`      |10007              |500            |General technical error.|
+|`invalid_api_key`              |10008              |401            |Authentication failed due to missing or invalid API key. Your key needs to be set to the HTTP auth username.|
+|`invalid_request_parameter`    |10028              |400            |One of the request parameters failed validation. The `message` and `param` fields contain more detailed information.|
+
+# Group Store Locator API SDK Samples 
+
+**curl**
+```curl
+curl -X GET "https://api.paysafecard.com/v2/shops?lat=&long=&radius=&limit=&moneyFlowDirection=&currency="
+```
+
+**Java**
+```java
+import org.openapitools.client.*;
+import org.openapitools.client.auth.*;
+import org.openapitools.client.model.*;
+import org.openapitools.client.api.StoresApi;
+
+import java.io.File;
+import java.util.*;
+
+public class StoresApiExample {
+
+    public static void main(String[] args) {
+        
+        StoresApi apiInstance = new StoresApi();
+        BigDecimal lat = 8.14; // BigDecimal | Latitude
+        BigDecimal long = 8.14; // BigDecimal | Longitude
+        BigDecimal radius = 8.14; // BigDecimal | Radius in kilometers around lat/long to search for stores
+        String limit = limit_example; // String | Number of results to return
+        String offset = offset_example; // String | Start position in the search results, used for pagination
+        String sortOrder = sortOrder_example; // String | 
+        String moneyFlowDirection = moneyFlowDirection_example; // String | IN or OUT - leave parameter out for paysafecard
+        Object body = Object; // Object | 
+        try {
+            array[inline_response_200] result = apiInstance.getStores(lat, long, radius, limit, offset, sortOrder, moneyFlowDirection, body);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling StoresApi#getStores");
+            e.printStackTrace();
+        }
+    }
+}
+```
+> Please note the request parameters in the above are not up to date.
+
+**Android**
+```android
+import org.openapitools.client.api.StoresApi;
+
+public class StoresApiExample {
+
+    public static void main(String[] args) {
+        StoresApi apiInstance = new StoresApi();
+        BigDecimal lat = 8.14; // BigDecimal | Latitude
+        BigDecimal long = 8.14; // BigDecimal | Longitude
+        BigDecimal radius = 8.14; // BigDecimal | Radius in kilometers around lat/long to search for stores
+        String limit = limit_example; // String | Number of results to return
+        String offset = offset_example; // String | Start position in the search results, used for pagination
+        String sortOrder = sortOrder_example; // String | 
+        String moneyFlowDirection = moneyFlowDirection_example; // String | IN or OUT - leave parameter out for paysafecard
+        Object body = Object; // Object | 
+        try {
+            array[inline_response_200] result = apiInstance.getStores(lat, long, radius, limit, offset, sortOrder, moneyFlowDirection, body);
+            System.out.println(result);
+        } catch (ApiException e) {
+            System.err.println("Exception when calling StoresApi#getStores");
+            e.printStackTrace();
+        }
+    }
+}
+```
+> Please note the request parameters in the above are not up to date.
+
+
+**Obj-c**
+```obj-c
+BigDecimal *lat = 8.14; // Latitude (default to null)
+BigDecimal *long = 8.14; // Longitude (default to null)
+BigDecimal *radius = 8.14; // Radius in kilometers around lat/long to search for stores (optional) (default to null)
+String *limit = limit_example; // Number of results to return (optional) (default to null)
+String *offset = offset_example; // Start position in the search results, used for pagination (optional) (default to null)
+String *sortOrder = sortOrder_example; //  (optional) (default to null)
+String *moneyFlowDirection = moneyFlowDirection_example; // String | IN or OUT - leave parameter out for paysafecard
+Object *body = Object; //  (optional)
+
+StoresApi *apiInstance = [[StoresApi alloc] init];
+
+// Retrieve Stores
+[apiInstance getStoresWith:lat
+    long:long
+    radius:radius
+    limit:limit
+    offset:offset
+    sortOrder:sortOrder
+    moneyFlowDirection:moneyFlowDirection
+    body:body
+              completionHandler: ^(array[inline_response_200] output, NSError* error) {
+                            if (output) {
+                                NSLog(@"%@", output);
+                            }
+                            if (error) {
+                                NSLog(@"Error: %@", error);
+                            }
+                        }];
+```
+> Please note the request parameters in the above are not up to date.
+
+
+**Javascript**
+```javascript
+var StoreLocator = require('store_locator');
+
+var api = new StoreLocator.StoresApi()
+var lat = 8.14; // {BigDecimal} Latitude
+var long = 8.14; // {BigDecimal} Longitude
+var opts = {
+  'radius': 8.14, // {BigDecimal} Radius in kilometers around lat/long to search for stores
+  'limit': limit_example, // {String} Number of results to return
+  'offset': offset_example, // {String} Start position in the search results, used for pagination
+  'sortOrder': sortOrder_example, // {String} 
+  'moneyFlowDirection': moneyFlowDirection_example, // {String} - IN or OUT - leave parameter out for paysafecard
+  'body': Object // {Object} 
+};
+
+var callback = function(error, data, response) {
+  if (error) {
+    console.error(error);
+  } else {
+    console.log('API called successfully. Returned data: ' + data);
+  }
+};
+api.getStores(lat, long, opts, callback);
+```
+> Please note the request parameters in the above are not up to date.
+
+
+**C#**
+```c#
+using System;
+using System.Diagnostics;
+using Org.OpenAPITools.Api;
+using Org.OpenAPITools.Client;
+using Org.OpenAPITools.Model;
+
+namespace Example
+{
+    public class getStoresExample
+    {
+        public void main()
+        {
+            
+            var apiInstance = new StoresApi();
+            var lat = 8.14;  // BigDecimal | Latitude (default to null)
+            var long = 8.14;  // BigDecimal | Longitude (default to null)
+            var radius = 8.14;  // BigDecimal | Radius in kilometers around lat/long to search for stores (optional)  (default to null)
+            var limit = limit_example;  // String | Number of results to return (optional)  (default to null)
+            var offset = offset_example;  // String | Start position in the search results, used for pagination (optional)  (default to null)
+            var sortOrder = sortOrder_example;  // String |  (optional)  (default to null)
+            var moneyFlowDirection = moneyFlowDirection_example;  // String | IN or OUT - leave parameter out for paysafecard
+            var body = Object;  // Object |  (optional) 
+
+            try
+            {
+                // Retrieve Stores
+                array[inline_response_200] result = apiInstance.getStores(lat, long, radius, limit, offset, sortOrder, moneyFlowDirection, body);
+                Debug.WriteLine(result);
+            }
+            catch (Exception e)
+            {
+                Debug.Print("Exception when calling StoresApi.getStores: " + e.Message );
+            }
+        }
+    }
+}
+```
+> Please note the request parameters in the above are not up to date.
+
+
+**PHP**
+```php
+<?php
+require_once(__DIR__ . '/vendor/autoload.php');
+
+$api_instance = new OpenAPITools\Client\Api\StoresApi();
+$lat = 8.14; // BigDecimal | Latitude
+$long = 8.14; // BigDecimal | Longitude
+$radius = 8.14; // BigDecimal | Radius in kilometers around lat/long to search for stores
+$limit = limit_example; // String | Number of results to return
+$offset = offset_example; // String | Start position in the search results, used for pagination
+$sortOrder = sortOrder_example; // String | 
+$moneyFlowDirection = moneyFlowDirection_example; // String | IN or OUT - leave parameter out for paysafecard
+$body = Object; // Object | 
+
+try {
+    $result = $api_instance->getStores($lat, $long, $radius, $limit, $offset, $sortOrder, $moneyFlowDirection, $body);
+    print_r($result);
+} catch (Exception $e) {
+    echo 'Exception when calling StoresApi->getStores: ', $e->getMessage(), PHP_EOL;
+}
+?>
+```
+> Please note the request parameters in the above are not up to date.
+
+
+**Perl**
+```perl
+use Data::Dumper;
+use WWW::OPenAPIClient::Configuration;
+use WWW::OPenAPIClient::StoresApi;
+
+my $api_instance = WWW::OPenAPIClient::StoresApi->new();
+my $lat = 8.14; # BigDecimal | Latitude
+my $long = 8.14; # BigDecimal | Longitude
+my $radius = 8.14; # BigDecimal | Radius in kilometers around lat/long to search for stores
+my $limit = limit_example; # String | Number of results to return
+my $offset = offset_example; # String | Start position in the search results, used for pagination
+my $sortOrder = sortOrder_example; # String | 
+my moneyFlowDirection = moneyFlowDirection_example; # String | IN or OUT - leave parameter out for paysafecard
+my $body = WWW::OPenAPIClient::Object::Object->new(); # Object | 
+
+eval { 
+    my $result = $api_instance->getStores(lat => $lat, long => $long, radius => $radius => limit => $limit, offset => $offset, sortOrder => $sortOrder, moneyFlowDirection => $moneyFlowDirection, body => $body);
+    print Dumper($result);
+};
+if ($@) {
+    warn "Exception when calling StoresApi->getStores: $@\n";
+}
+```
+> Please note the request parameters in the above are not up to date.
+
+
+**Pyhton**
+```python
+from __future__ import print_statement
+import time
+import openapi_client
+from openapi_client.rest import ApiException
+from pprint import pprint
+
+# create an instance of the API class
+api_instance = openapi_client.StoresApi()
+lat = 8.14 # BigDecimal | Latitude (default to null)
+long = 8.14 # BigDecimal | Longitude (default to null)
+radius = 8.14 # BigDecimal | Radius in kilometers around lat/long to search for stores (optional) (default to null)
+limit = limit_example # String | Number of results to return (optional) (default to null)
+offset = offset_example # String | Start position in the search results, used for pagination (optional) (default to null)
+sortOrder = sortOrder_example # String |  (optional) (default to null)
+moneyFlowDirection = moneyFlowDirection_example # String  | String - IN or OUT - leave parameter out for paysafecard
+body = Object # Object |  (optional)
+
+try: 
+    # Retrieve Stores
+    api_response = api_instance.get_stores(lat, long, radius=radius, limit=limit, offset=offset, sortOrder=sortOrder, moneyFlowDirection=moneyFlowDirection, body=body)
+    pprint(api_response)
+except ApiException as e:
+    print("Exception when calling StoresApi->getStores: %s\n" % e)
+
+```
+> Please note the request parameters in the above are not up to date.
+
+
+**Rust**
+```rust
+extern crate StoresApi;
+
+pub fn main() {
+    let lat = 8.14; // BigDecimal
+    let long = 8.14; // BigDecimal
+    let radius = 8.14; // BigDecimal
+    let limit = limit_example; // String
+    let offset = offset_example; // String
+    let sortOrder = sortOrder_example; // String
+    let moneyFlowDirection = moneyFlowDirection_example; // String
+    let body = Object; // Object
+
+    let mut context = StoresApi::Context::default();
+    let result = client.getStores(lat, long, radius, limit, offset, sortOrder, moneyFlowDirection, body, &context).wait();
+    println!("{:?}", result);
+
+}
+```
+> Please note the request parameters in the above are not up to date.

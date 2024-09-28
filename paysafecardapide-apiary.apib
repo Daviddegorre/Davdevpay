@@ -1,0 +1,931 @@
+FORMAT: 1A
+HOST: https://apitest.paysafecard.com/v1
+
+
+# Integration der REST API von paysafecard
+
+# Technische Einführung
+Dieser Abschnitt beinhaltet eine technische Einführung zur REST API von paysafecard. 
+
+For the english version please visit https://www.paysafecard.com/fileadmin/api/ 
+
+## Über die API
+Die REST API von paysafecard folgt den Programmiergrundsätzen einer <a href="https://de.wikipedia.org/wiki/Representational_State_Transfer" target="_blank">*RESTful*</a> , sodass die API leicht zu verstehen und zu integrieren ist.
+Representational State Transfer (REST) ist ein Software-Architekturstil, der aus Richtlinien für die Entwicklung skalierbarer Webservices besteht.
+„RESTful Systems“ kommunizieren in der Regel über das Hypertext Transfer Protocol unter Verwendung der gleichen HTTP-Verben (GET, POST, PUT, DELETE usw.), die Webbrowser für das Abrufen von Webseiten und das Senden von Daten an Remote-Server verwenden.
+Es unterstützt solide und universell anerkannte Grundlagen wie [*http basic authentication*](https://de.wikipedia.org/wiki/HTTP-Authentifizierung#Basic_Authentication), [*http verbs*](https://de.wikipedia.org/wiki/Hypertext_Transfer_Protocol#HTTP-Anfragemethoden), [*JSON*](https://de.wikipedia.org/wiki/JavaScript_Object_Notation) and [*CORS*](https://de.wikipedia.org/wiki/Cross-Origin_Resource_Sharing).
+
+## Versionen
+Bei rückwärts-inkompatiblen Veränderungen an der API wird grundsätzlich eine neue Hauptversion veröffentlicht. Diese Hauptversion ist Bestandteil des URL-Pfads. Die aktuelle Hauptversion ist *v1*. Soweit Sie nicht von unserer technischen Supportabteilung darüber informiert werden, dass wir den Support für eine bestimmte Version der API einstellen, müssen Sie die API-Version nicht wechseln.
+
+## Voraussetzungen
+Sie können sich nur mit paysafecard verbinden, wenn folgende Voraussetzungen erfüllt sind:
+- Sie haben einen API-Key zur Authentifizierung von Anfragen von paysafecard erhalten.
+- Die IP-Adresse des Zahlungsservers wurde autorisiert (wird beim Versuch, auf den Dienst zuzugreifen, ein „Fehler 403“ ausgegeben, ist anzunehmen, dass die IP-Adresse noch nicht freigeschaltet wurde).
+- Content-Type: Bitte achten Sie beim Übermitteln von Anfragen darauf, dass der Content-Type im HTTP-Header gesetzt ist auf **Content-Type: application/json**
+- Für die Zeichenkodierung muss UTF-8 verwendet sein
+
+Verbinden Sie sich nur über entsprechende FQDNs mit unseren Diensten
+Cachen Sie keine DNS-Auflösungen von paysafecard FQDNs in Ihrer Infrastruktur (Client-Server, Resolver etc.). Die DNS-Auflösungen sollten ablaufen, sobald die TTL erreicht ist.
+Falls Ihre Anwendung auf Java basiert, überprüfen Sie bitte Ihre TTL-Einstellungen auf der JVM, das DNS-Caching-Verhalten muss angepasst werden:
+networkaddress.cache.ttl=60 (TTL 60 Sekunden). Bitte beachten Sie, dass dieser Parameter in der JVM-Sicherheitskonfiguration persistiert werden muss.
+Wenn Ihre Anwendung auf einem anderen Framework basiert, das die DNS-Auflösung zwischenspeichert, stellen Sie sicher, dass die DNS-TTL auf maximal 60 Sekunden eingestellt ist, oder verlassen Sie sich auf die von unseren DNS-Einträgen eingestellte TTL
+
+Wenn Sie die DNS-Änderungen beachten, stellen Sie sicher, dass Sie sich immer mit unserem aktiven System verbinden.
+
+Übersetzt mit www.DeepL.com/Translator (kostenlose Version)
+
+## API-Key Authentifizierung
+Jede Anfrage an die API von paysafecard wird mit einem API-Key authentifiziert.
+- Der Wert des **API-Keys muss Base64-kodiert sein**, wenn er in den HTTP-Header übermittelt wird!
+- Legen Sie den Key als Benutzernamen fest. [*HTTP basic authentication*]( https://de.wikipedia.org/wiki/HTTP-Authentifizierung#Basic_Authentication)
+- Ihr API-Key kann nur von Ihren Backend-Systemen aus verwendet werden.
+- *Bitte beachten: Ihre API muss gesichert bleiben - geben Sie den API-Schlüssel niemandem bekannt!*
+
+Es folgt ein Beispiel für die Einstellung des API-Keys.
+
+```
+Authorization: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+```
+
+## Testumgebung und Endpoints
+
+paysafecard stellt das „paysafecard Testsystem“, eine Testumgebung für die Integration neuer Geschäftspartner zur Verfügung. 
+    Jeder neue Geschäftspartner muss die Zahlungsplattform zunächst im Testsystem integrieren.
+    Sobald die Integration auf Ihrem System abgeschlossen ist, muss ein UAT(UserAcceptanceTest) durchgeführt werden, um den reibungslosen Ablauf der Integration zu gewährleisten.
+
+- Nachdem die Integration im Service Center akzeptiert wurde, kann der Geschäftspartner den Wechsel ins Produktivsystem vollziehen, der
+für den Geschäftspartner die folgenden Schritte beinhaltet:
+    - Aktualisierung auf Produktiv-Zugang,
+    - Ersetzen der Service Endpoint URL,
+    - Whitelist der Server-IPs.
+
+        Alle Daten werden vom Merchant Service Center bereitgestellt.
+
+
+- Der Endpoint für die *Testumgebung* ist: https://apitest.paysafecard.com/v1/
+- Der Endpoint für die *Produktivumgebung* ist: https://api.paysafecard.com/v1/
+
+## HTTP Status-Codes
+| Code | Kurzbeschreibung      | Beschreibung |
+| ---  | ---                   | ---         |
+| 200  | OK                    | Alles OK.|
+| 201  | Created               | Neues Objekt wurde erfolgreich erstellt.|
+| 400  | Bad Request           | Fehlender Parameter.|
+| 401  | Unauthorized          | API-Key ungültig oder abgelaufen.|
+| 404  | Not Found             | Nicht gefunden. Dieser Wert wird auch ausgegeben, wenn Sie versuchen, eine nicht existente Zahlung abzurufen.|
+| 500  | Internal Server Error | Allgemeiner technischer Fehler bei paysafecard.|
+| 501  | Not Implemented       | Versionsmerkmal wurde nicht bereitgestellt.|
+| 502  | Bad Gateway           | Ungültige Antwort des vorgeschalteten Systems.|
+| 503  | Service Unavailable   | Server überlastet.|
+| 504  | Gateway Timeout       | Timeout des vorgeschalteten Systems.|
+
+
+*Nachstehend ein Beispiel für eine Fehlermeldung:*
+
+```
+   400 Bad Request
+
+   {
+      "code": "invalid_request_parameter"
+      "message": ""must contain 1-10 digits, followed by a decimal separator '.' followed by 2 digits",
+      "number": 10028,
+      "param": "amount"
+   }
+   
+```
+
+*Bitte beachten: Eine Liste aller häufigen Fehlermeldungen findet sich nachstehend am Ende jedes Serviceabschnitts.*
+
+# Produkteinführung für Kunden
+Dieser Abschnitt enthält eine Übersicht der Kundenprodukte von paysafecard, die im Zusammenhang mit der paysafecard REST API relevant sind.
+
+## paysafecard
+paysafecard ermöglicht Kunden, ohne Bankkonto oder Kreditkarte sicher im Internet zu bezahlen. Der Kunde erwirbt paysafecard an einer Verkaufsstelle in Form eines Ausdrucks mit einem 16-stelligen PIN-Code und zahlt, indem der den PIN-Code in das paysafecard Zahlungsfenster in Ihrem Onlineshop eingibt.
+
+## my paysafecard
+Neben der Möglichkeit, mit einer PIN zu bezahlen, bietet paysafecard seinen Nutzern außerdem my paysafecard an, ein Konto für die PINs des Kunden. 
+Der Kunde registriert sich für my paysafecard und lädt das Konto mit gekauften paysafecard PINs auf. Das selbe gilt für das my paysafecard administration tool*. 
+Der Kunde kann dann über die Summe der Werte aller paysafecard PINs auf dem my paysafecard verfügen. Gezahlt wird einfach und sicher durch die Eingabe von Benutzername und Passwort.
+
+
+* Das my paysafecard administrations tool ist die Alternative für die klassische my paysafecard account und ausschließlich in den Ländern Australien, Canada, Litauen, Mexico, Neuseeland, Uruguay nutzbar. 
+Das my paysafecard administration tool kann nicht für die Produkte payout oder refund verwendet werden.
+
+# Der Zahlungsprozess mit paysafecard
+Dieser Bereich enthält Informationen über den Zahlungsvorgang mit paysafecard aus der Sicht eines Geschäftspartners.
+
+## Funktionsübersicht des Zahlungsprozesses
+Der Zahlungsprozess funktioniert wie folgt:
+
+1. Der Kunde wählt in Ihrem Onlineshop paysafecard als Zahlungsmethode.
+2. Sie leiten eine Zahlung mit dem richtigen Betrag, der richtigen Währung und sonstigen Parametern ein.
+3. Sie leiten den Kunden an das gehostete Zahlungsfenster von paysafecard weiter, wo der Kunde 30 Minuten Zeit hat, um den 16-stellige PIN von paysafecard einzugeben. Weitere Informationen dazu, wie Sie die gehostete Zahlungsseite von paysafecard richtig integrieren, finden Sie im folgenden Abschnitt "Angaben zur Zahlungsseite“.
+4. paysafecard schickt eine Benachrichtigung an die Benachrichtigungs-URL.
+5. paysafecard leitet den Kunden zurück zur Erfolgs-URL.
+6. Sie ziehen die Zahlung ein (nähere Informationen hierzu finden Sie im folgenden Abschnitt "Einziehen einer Zahlung“).
+
+![Payment Flow](https://www.paysafecard.com/fileadmin/api/images/payment_diagram_de.jpg)
+
+## Details zur Zahlungsseite
+Kunden von paysafecard werden standardmäßig auf die gehostete Zahlungsseite von paysafecard weitergeleitet, wo sie den 16-stelligen PIN-Code eingeben oder sich mit ihrem Konto einloggen müssen, um mit ihrer Zahlung fortzufahren. 
+Bitte achten Sie darauf, dass die Größe der gehosteten Zahlungsseite in Ihrem Onlineshop richtig eingestellt ist.
+
+
+* Das my paysafecard administrations tool ist die Alternative für die klassische my paysafecard account und ausschließlich in den Ländern Australien, Canada, Litauen, Mexico, Neuseeland, Uruguay nutzbar. 
+Das my paysafecard administration tool kann nicht für die Produkte payout oder refund verwendet werden. 
+
+### Integration auf Desktop-Geräten
+
+Die gehostete Zahlungsseite von paysafecard kann in einem Popup-Fenster oder alternativ in einem iFrame angezeigt werden.
+bieten Sie bitte stets die Möglichkeit zum vertikalen Scrollen oder für dynamisches Skalieren.
+- Breite: 600 px
+- Höhe: max. 840 px
+
+### Integration auf Mobilgeräten
+
+*Die Zahlungsseite von paysafecard wird automatisch für Mobilgeräte optimiert.*
+
+Verwendet ein Kunde ein Gerät mit einer **Auflösung unter 600 px** wird automatisch ein für Mobilgeräte optimiertes Zahlungsfenster angezeigt.
+Dasselbe gilt, wenn der eingebettete iFrame schmaler als 600 px ist.
+
+    
+### Gebietsschema- und Spracheinstellungen
+
+Zur Gewährleistung der Rückwärtskompatibilität liefern alle existierenden Sprachparameter weiterhin das gleiche Ergebnis wie in Vorgängerversionen
+Der API, jede Sprache wird jedoch automatisch in ein Gebietsschema umgewandelt.
+
+Sprache und Gebietsschema des Zahlungsfensters werden grundsätzlich durch folgende Regel bestimmt:
+
+        1. Hat der Kunde das Zahlungsfenster schon einmal besucht? Abrufen des Gebietsschemas aus dem gesetzten Cookie.
+        2. Verwenden Sie das Gebietsschema von der IP-Adresse des Kunden (paysafecard nutzt eine GeoIP-Prüfung).
+        3. Verwenden des Wertes aus dem Gebietsschema-Parameter.
+        4. Verwenden des Wertes aus dem Sprach-Parameter.
+        5. Abrufen des Gebietsschemas aus dem Browser-Header.
+
+Es ist deshalb nicht erforderlich, ein Gebietsschema-Parameter an den Kunden zu übermitteln.
+
+
+# paysafecard Fehlermeldungen
+
+Kunden können die übersetzten Fehlermeldungen in den Sprachen EN, DE, ES, FR, IT, NL, SV, CZ und PL hier finden(https://www.paysafecard.com/fileadmin/Website/Dokumente/B2B/paysafecard_error_messages.pdf).
+
+# Group Zahlungsvorgang
+
+1. Der Kunde wählt paysafecard als Zahlungsmethode.
+
+1. Zahlung einleiten: Senden Sie die POST-Anfrage `initiate Payment`.
+    * 2.1. Wenn die Antwort http20X ist, leiten Sie den Kunden an das Zahlungsfenster weiter.
+    * 2.2. Wenn die Antwort http40X oder http50X, zeigen Sie dem Kunden eine Fehlermeldung an.
+    Inititate Payment Fehlermeldung:"Die Transaktion konnte auf Grund von technischen Problemen nicht erstellt werden. Falls dieses Problem weiterhin besteht wenden Sie sich bitten an den (Businesspartner)Support"
+        
+1. Weiterleitung zum Zahlungsfenster auf die `auth_url`: Der Kunde erreicht das Zahlungsfenster.
+
+1. PIN-Eingabe (durch den Kunden): Der Kunde gibt einen gültigen PIN-Code ein und klickt auf Bezahlen.
+    * 4.1. Auf dem paysafecard Zahlungsfenster wird der PIN-Code auf Korrektheit validiert.
+    Falls der Kunde am Zahlungsfenster die Transaktion abbricht, bitte folgende Fehlermeldung darstellen: "Zahlungsabbruch durch Benutzer" 
+    
+1. Zustellen der Zahlungsbenachrichtigung: Da die Karte der Transaktion zugewiesen ist (Zahlungsstatus "AUTHORIZED"), senden wir eine Benachrichtigung an Ihre `notification_url`.
+
+1. `notification_url` Verhalten: Sie führen sofort nach Erhalt der Zahlungsbenachrichtigung die GET-Anfrage `Retrieve payment details` durch um den Status der Transaktion abzufragen.
+    * 6.1. Wenn auf dem GET `retrieve payment details` mit dem Zahlungsstatus "AUTHORIZED" geantwortet wird, soll sofort die POST-Anfrage `capture Payment` gemacht werden.
+    * 6.2. Wenn die Antwort von `capture payment` http20X ist und der Status "SUCCESS" ist, wird das Endkundenkonto aufgestockt.
+    
+1. Weiterleitung an die`success_url`: Wir leiten den Kunden an Ihre `success_url`.
+
+1. `success_url` Verhalten: Sie überprüfen, auf der `success_url`, den Status der Transaktion mit der GET-Anfrage `retrieve payment details`. 
+    * 8.1. Wenn der Zahlungsstatus der Transaktion "SUCCESS“ ist, zeigen Sie dem Kunden eine Erfolgsmeldung an.
+    * 8.2. Wenn der Zahlungsstatus "AUTHORIZED" ist, führen Sie die POST-Anfrage `capture Payment` durch.
+        * 8.2.1. Wenn die Antwort http20X und der Status "SUCCESS" ist, wird das Endkundenkonto aufgestockt und dem Kunden die erfolgreiche Zahlung mitgeteilt.
+        * 8.2.2. Wenn die Antwort http40X oder http50X, zeigen Sie dem Kunden eine Fehlermeldung an.
+    * 8.3. Wenn die Antwort auf `retrieve payment details` http40X oder http50X ist, zeigen Sie dem Kunden eine Fehlermeldung an.
+    Retrieve Payment Details Fehlermeldung: "Die Zahlung konnte auf Grund eines temporären Verbindungsproblems nicht abgeschlossen werden. Bitte drücken Sie den "reload" Button im Browser um die Zahlung abzuschließen.Falls dieses Problem weiterhin besteht, wenden Sie sich bitte an den (Businesspartner)Support.
+
+![Detailed Payment Flow](https://www.paysafecard.com/fileadmin/api/images/paysafecard_classic_payment_en.jpg)
+
+# Group Payment Information
+
+The following section provides additional information about the payment process:
+
+## Zahlungsstatus
+
+|Wert                     |Beschreibung|
+|---                      |---                                                                 |
+|`INITIATED`              |Anfänglicher Status einer erfolgreich angelegten Zahlung.    |
+|`REDIRECTED`             |Der Kunde wurde an das Zahlungsfenster von paysafecard weitergeleitet, um die Zahlung zu autorisieren.|
+|`AUTHORIZED`             |Der Kunde hat die Zahlung autorisiert.|
+|`SUCCESS`                |Die Zahlung wurde erfolgreich abgeschlossen.|
+|`CANCELED_MERCHANT`      |Sie, als der Geschäftspartner, haben die Zahlung abgebrochen.|
+|`CANCELED_CUSTOMER`      |Der Kunde hat die Zahlung im Zahlungsfenster abgebrochen.|
+|`EXPIRED`                |Der Kunde hat die Zahlung nicht innerhalb des Dispositionszeitfensters autorisiert oder Sie, der Geschäftspartner, haben die Zahlung nicht innerhalb des Dispositionszeitfensters eingezogen.|
+
+## Customer ID
+Auch bekannt als "Merchant Client ID". Die Customer ID ist ein wichtiger Parameter für die Integration von paysafecard.
+
+Die Customer ID identifiziert den Kunden auf der Seite unserer Business Partner.
+
+Die optimale Customer ID ist ein komplett zufälliger Wert. Dieser Wert identifiziert den Kunden eindeutig und einzigartig, und beinhalted keine persönliche Information.
+
+Diese Customer ID sollte für alle Transaktionen eines Kunden gleich bleiben.
+
+Richtlinien für mögliche Customer IDs:
+<br><br/>
+<br><br/>
+**Gültige Werte:**
+|Wert |Typ
+|--- |---
+`2c3be0b50c7a5f1964a63d78f38a6ffc41c027e9` |SHA1 - test@123.com
+`742f2b1a55cd5d606ea44b4fcb54646a` | MD5 - test@123.com
+`3a5b0d0777dead9df93d502df85c8180e53804eb`|SHA1 - UsernameValue1
+`3192481752123`| Zufälliger Customer Identifier (Customer ID)
+`CustomerID1`| Customer Identifier ohne persönliche Information
+
+<br><br/>
+**Ungültige Werte:**
++ `test@123.com`
++ `Username_1`
++ `Vorname123`
++ `Nachname123`
++ `Zeitmarke`
++ `IP Adresse`
+
+Bitte beachten: ungültige Customer IDs werden nicht akzeptiert.
+
+Wenn Sie paysafecard Transaktionen auf mehreren Brands verarbeiten wollen, erkundigen Sie sich bitte bei uns über die Möglichkeiten, mehrere Instanzen auf Ihrem Konto zu trennen.
+
+
+## Dispositionszeitfenster
+
+Sobald eine Zahlung den Status `AUTHORIZED` erhält, müssen Sie die Zahlung des Kunden innerhalb eines bestimmten Zeitraums einziehen (Dispositionszeit).
+Das Dispositionszeitfenster ist durch unsere AGBs definiert und zwischen 60 Sekunden bis maximal 10 Minuten eingestellt. 
+Mit Ende der Dispositionszeit läuft die Disposition automatisch ab, der Betrag auf der PIN von paysafecard, my pasafecard Konto oder my administration tool* des Kunden wird wieder verfügbar.
+*Bitte beachten: Alle Zahlungen, die nicht innerhalb des Dispositionszeitfenster vom Kunden autorisiert oder von Ihnen eingezogen wurden, werden auf `EXPIRED` gesetzt. Diese Jobs sind nur in der paysafecard Produktivumgebung aktiv.*
+
+
+*Das my paysafecard administrations tool ist die Alternative für die klassische my paysafecard account und ausschließlich in den Ländern Australien, Canada, Litauen, Mexico, Neuseeland, Uruguay nutzbar. 
+Das my paysafecard administration tool kann nicht für die Produkte payout oder refund verwendet werden.
+
+## Zahlungsbenachrichtigung
+
+Die Zahlungsbenachrichtigung wird verwendet, um den Geschäftspartner über das Zahlungsfortschritt nach der Zahlungsautorisierung zu informieren.
+Dieser Dienst ermöglicht den Abschluss von Zahlungen vor dem Aufstocken des Endkundenkontos, er wird deshalb unbedingt empfohlen, um unvollständige Zahlungen zu vermeiden.
+Im Falle technischer Fehler (z. B. Socket Timeout) oder Anwendungsfehler (z. B. HTTP Statuscode 500) wird die Zahlungsbenachrichtigung in regelmäßigen Abständen erneut übermittelt, bis eines der folgenden Kriterien erfüllt ist:
+- Die Zahlungsbenachrichtigung wurde erfolgreich zugestellt (d. h. Zahlungsserver antwortet mit HTTP-Statuscode 200).
+- Die maximale Anzahl von Wiederholungsversuchen wurde erreicht (aktuelle Konfiguration: 5 Wiederholungsversuche).
+
+## Status vor dem Ablauf
+
+`status_before_expiration` kann eingesetzt werden, um den Status der Zahlung zu erhalten, bevor sie auf `EXPIRED` gesetzt wird.
+Das ist nützlich, um Fälle, in denen eine erfolgreich autorisierte Zahlung nicht eingezogen wurde, von denen zu unterschieden, in denen die Zahlung vom Kunden überhaupt nicht autorisiert wurde.
+Mögliche Werte sind "AUTHORIZED", "INITIATE" und "REDIRECTED".
+
+# Group API Calls für den Zahlungsvorgang
+
+## Einleitung einer Zahlung [/payments]
+
+Bei erfolgreicher Durchführung dieser Anfrage ändert sich der `status` der Zahlung auf `INITIATED`.
+
+Bei Nutzung des optionalen HEADER-Paramter `Correlation-ID` kann man einen Teil der Bezeichnung des Parameter `id` selbst aussuchen.
+
+Erlaubte Zeichen für die `Correlation-ID`sind "a-z,A-Z,0-9,-,_"
+
++ Attribute (PaymentRequest)
+
+
+### Initiate payment [POST]
+
+
+Im nächsten Schritt wird der Kunde an die `auth_url` weitergeleitet, die als Teil der Antwort ausgegeben wird.
+
+Sobald der Kunde die Zahlung autorisiert hat, wird der Status auf `AUTHORIZED` gesetzt und der Kunde wird auf die von Ihnen beim Anlegen der Zahlung angegebene `success_url` weitergeleitet.
+
+Zusätzlich zur Weiterleitung des Kunden zurück auf Ihre Seite rufen wir die `notification_url` auf, die Sie angegeben haben. Nähere Angaben finden Sie im Abschnitt "Zahlungsbenachrichtigung".
+
+Jetzt sind Sie bereit für den letzten Schritt, die Einziehung der Zahlung.
+
++ Request (application/json)
+
+    + Header
+
+               Authorization: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
+    + Attribute (PaymentRequest)
+
+
++ Response 201 (application/json)
+
+            {
+            "object": "PAYMENT",
+            "id": "pay_1000000007_Hukab77YIXzKUYMdgPDBQ986ihNUQChu_EUR",
+            "created": 1430137532383,
+            "updated": 1430137532383,
+            "amount": 0.01,
+            "currency": "EUR",
+            "status": "INITIATED",
+            "redirect": {
+                "success_url": "http://ok.com/pay_1000000007_Hukab77YIXzKUYMdgPDBQ986ihNUQChu_EUR",
+                "failure_url": "http://nok.com/pay_1000000007_Hukab77YIXzKUYMdgPDBQ986ihNUQChu_EUR",
+                "auth_url": "https://dv.customer.paysafecard.com/psccustomer/GetCustomerPanelServlet?mid=1000000007&mtid=pay_1000000007_Hukab77YIXzKUYMdgPDBQ986ihNUQChu_EUR&amount=0.01&currency=EUR"
+            },
+            "customer": {
+                "id": "ICuCsrKUmg3pCpTyFNNrPR6K5k36P8Sv"
+                },
+            "notification_url": "http://notification.com/pay_1000000007_Hukab77YIXzKUYMdgPDBQ986ihNUQChu_EUR"
+            }
+
+## Einziehen einer Zahlung [/payments/{id}/capture]
+
+
+```
+POST /payments/{id}/capture
+```
+
+| Parameter                     | Type    | Required | Example            | Description                          |
+| ---                           | ---     | ---      | ---                | ---                                  |
+| `id`                          | String  | Erforderlich | pay_9000001500_t7krk6idmLIzz6uUUv3AhU6dIay7ah75_EUR | id from Step 1 |
+
+
+### Capture payment [POST]
+
++ Parameter
+    + id: pay_9000001500_t7krk6idmLIzz6uUUv3AhU6dIay7ah75_EUR (required) - ID des ersten Zahlungsaufrufs.
+
++ Request (application/json)
+
+    + Header
+
+               Authorization: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
++ Response 200 (application/json)
+
+            {
+            "object":"PAYMENT",
+            "id":"pay_1000000007_k3JfFMcpLPXGMk1mOdkbmRARdr5kKQeI_EUR",
+            "created":1430205127021,
+            "updated":1430206011382,
+            "amount":0.01,
+            "currency":"EUR",
+            "status":"SUCCESS",
+            "type":"PAYSAFECARD",
+            "customer":{
+                "id":"a4ssjAMiHia58AJ7wi4cHBgsFOTmTvCv"},
+            "notification_url":"http://notification.com",
+            "card_details":[{
+                "serial":"1453591278",
+                "currency":"EUR",
+                "amount":0.01,
+                "type":"00002",
+                "country":"AT"}]
+            }
+
+### Abrufen der Zahlungsangaben [/payments/{id}]
+
+```
+GET /payments/{id}
+```
+| Parameter                     | Typ             | Erforderlich    | Beispiel                | Beschreibung                                            |
+| ---                           | ---             | ---             | ---                     | ---                                  |
+| `id`                          | String    | Erforderlich    | pay_9000001500_t7krk6idmLIzz6uUUv3AhU6dIay7ah75_EUR | id from Step 1 |
+
+
++ Parameter
+    + id (required, String, `pay_9000001500_t7krk6idmLIzz6uUUv3AhU6dIay7ah75_EUR`) ... id from Step 1.
+
+### Retrieve payment details [GET]
+
++ Request (application/json)
+
+    + Header
+
+               Authorization: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
+
++ Response 200 (application/json)
+
+ + Attribute (PaymentResponse)
+
+
+# Group Zahlungsvorgang API Antwortmeldungen
+
+|Parameter|Beschreibung|Fall|
+|---|---|---|
+|`object`|Identifiziert das Objekt. Für eine Zahlung wird der Wert PAYMENT ausgegeben.|Immer|
+|`id`|Eindeutiger Identifikator für eine Zahlung.|Immer|
+|`created`|Unix-Zeitstempel gibt an, wann dieses Zahlung erstellt wurde.(Millisekunden)|Immer|
+|`updated`|Unix-Zeitstempel gibt an, wann dieses Zahlung zuletzt aktualisiert wurde.(Millisekunden)|Immer|
+|`amount`|Zahlungsbetrag.|Immer|
+|`currency`|Währung dieser Zahlung.|Immer|
+|`status`|Bitte scrollen Sie nach oben zum Abschnitt "Zahlungsstatus". Dort finden Sie eine Liste aller möglichen Zahlungsstatuse.|Immer|
+|`status_before_expiration`|Hält der Status der Zahlung, bevor Sie auf `EXPIRED` gesetzt wird. Das ist nützlich, um Fälle, in denen eine erfolgreich autorisierte Zahlung nicht eingezogen wurde, von denen zu unterschieden, in denen die Zahlung vom Kunden überhaupt nicht autorisiert wurde.|Optional. Wird nur Ausgegeben, wenn die Zahlung den Status `EXPIRED` hat.|
+|`type`|Immer auf PAYSAFECARD stellen.|Immer|
+|`redirect[success_url]`|URL für die Weiterleitung nach erfolgreicher Autorisierung.|Immer|
+|`redirect[failure_url]`|URL für die Weiterleitung nach gescheiterter Autorisierung.|Immer|
+|`notification_url`|Die Notification-URL kontaktieren wir, nachdem die Autorisierung erfolgreich abgeschlossen wurde.|Immer|
+|`customer[id]`| Von Ihnen bereitgestellte ID, die den Kunden identifiziert.|Immer|
+|`customer[ip]`|IPv4-Adresse des Kunden.|Nach der Weiterleitung des Kunden an das paysafecard Zahlungsfenster.|
+|`card_details[serial]`|Seriennummer der Karte, die verwendet wurde, um die Zahlung zu autorisieren.|Nach Zuweisung der Karte.|
+|`card_details[currency]`|Währung der Karte.|Nach Zuweisung der Karte.|
+|`card_details[amount]`|Der Betrag für diese Zahlung wurde von der Karte abgebucht.|Nach Zuweisung der Karte.|
+|`card_details[type]`|Kartentyp.|Nach Zuweisung der Karte.|
+|`card_details[country]`|Land, in dem die Karte ausgestellt wurde.|Nach Zuweisung der Karte.|
+
+# Group Fehlercodes für Zahlungsvorgang
+
+|Code                                                                                |Nummer (optional)  |HTTP Status    |Beschreibung          |
+|---                                                                                |---                |---            |---                  |
+|`general_technical_error`                                                          |10007              |500            |Allgemeiner technischer Fehler.|
+|`invalid_api_key`                                                                  |10008              |401            |Authentifizierung gescheitert wegen fehlendem oder ungültigem API-Key. Ihr Key muss auf den HTTP auth username lauten.|
+|`invalid_request_parameter`                                                        |10028              |400            |Ein Anfrageparamenter konnte nicht validiert werden. Die Felder `message` und `param` enthalten genauere Informationen.|
+|`duplicate_transaction_id `                                                        |2001               |400            |Transaktion existiert bereits.|
+|`payment_invalid_state`                                                            |2017               |400            |Die Zahlung hat einen ungültigen Status, z. B. wenn Sie versucht haben, eine Zahlung einzuziehen, die den Status `INITIATED` und nicht den Status `AUTHORIZED` hat.|
+|` Merchant with Id XXXXXXXXXX is not active.`                                      |3001               |400            |Merchant ist nicht aktiv.|
+|` Merchant with Id XXXXXXXXXX is not allowed to perform this debit any more `      |3007               |400            |Abbuchungsversuch nach Ablauf des Dispositionszeitfensters.|
+|`submerchant_not_found`                                                            |3014               |400            |Der von Ihnen angegebene `submerchant_id` ist nicht konfiguriert.|
+|`general_error`                                                                    |3017               |400            |Es ist verpflichtend, eine Merchant Client ID mitzuschicken.|
+|`general_error`                                                                    |3019               |400            |Die MCID enthält einen ungültigen Wert.|
+
+Andere Fehler können dem Kunden als „allgemeiner technischer Fehler“ gemeldet werden. Grundsätzlich sollte beim Auftreten solcher 
+Fehler der Geschäftspartner paysafecard sofort unter integration@paysafecard.com kontaktieren, wenn das Konto nicht im Produktivbetrieb ist.
+Für Konten im Produktivbetrieb wenden Sie sich bitte an techsupport@paysafecard.com.
+
+# Group Payout Auszahlungsvorgang
+
+Payout ermöglicht die Übermittlung von Geld an my paysafecard Konto Besitzer. Die Auszahlung wird durch den Geschäftspartner 
+auf Anforderung des Kunden durchgeführt. Payout ist für my paysafecard Konto Besitzer in folgenden Ländern nutzbar: Belgien, Bulgarien, Dänemark, Deutschland, Finnland, Frankreich, Georgien, Griechenland, Großbritannien
+Irland, Italien, Kroatien, Lettland, Luxemburg, Malta, Niederlanden, Norwegen, Österreich, Polen, Portugal, Rumänien, Slowakei, Slowenien, Spanien, Schweden, Schweiz, Tschechische Republik, Ungarn.
+
+- Schritt 1: Auszahlungsanfrage des Kunden und Validierung
+
+        1. Der Kunde fordert eine Auszahlung auf der Webseite des Geschäftspartners (Merchant) an.
+
+        1.1 Die Auszahlungsanfrage wird durch das System von paysafecard in Echtzeit validiert (es wird noch kein Geld übermittelt).
+
+        1.1.1 paysafecard validiert die Anfrage (kann die Auszahlung stattfinden? Existiert der Kunde? usw.).
+
+        1.1.1.1 Der Merchant legt die Auszahlungsanfrage in die Back-Office-Queue, damit sie später manuell genehmigt werden kann.
+
+        1.1.1.2 Der Kunde wird infomiert, dass die Anfrage auf Auszahlung akzeptiert wurde und die Auszahlung bevorsteht (oder die Anfrage auf Auszahlung wurde abgeleht, weil die Validierung negativ ist).
+
+![Payout Flow1](https://www.paysafecard.com/fileadmin/api/images/paysafecard_service_payout_de_Steps-01.jpg)
+
+- Schritt 2: Durchführung der Auszahlung durch den Geschäftspartner
+
+        2. Ein Back-Office-Mitarbeiter des Geschäftspartners gibt die Auszahlungsanfrage in der Queue manuell frei.
+
+        2.1 Der Mitarbeiter bestätigt die Auszahlung (oder lehnt sie ab).
+
+        2.1.1 Der Geschäftspartner führt die Auszahlung durch.
+
+        2.1.1.1 paysafecard überweist das Geld auf das my paysafecard-Konto des Kunden.
+
+![Payout Flow1](https://www.paysafecard.com/fileadmin/api/images/paysafecard_service_payout_de_Steps-02.jpg)
+
+- Austausch von Kundendaten
+    - Der Geschäftspartner muss im Rahmen des Payout Call für jede Auszahlungsanfrage die persönlichen Daten des Kunden (Vorname,
+        Nachname, Geburtsdatum) an paysafecard übermitteln. gleicht die übermittelten Daten automatisch mit
+        den Registrierungsdaten des my paysafecard Kontos ab.
+
+        Stimmen die Daten nicht überein, wird die Auszahlung automatisch abgelehnt.
+
+    Stimmen die Daten nicht zu 100 % überein, kann die automatische Validierung nicht fortgesetzt werden, die Auszahlung wird automatisch
+        abgelehnt. Vor Beginn des Abgleichs durch paysafecard werden die Daten normalisiert.
+
+- Abrufen von MID-Limits
+    - Der Geschäftspartner hat eine MID (für jedes Land, jede MID hat ein eigenes Auszahlungslimit - den Betrag, den
+        der Merchant noch auszahlen kann). Informationen über die finanzielle Situation eines MID kann in Echtzeit über das
+        REST-Attribut /payouts/limits/`currency` abgerufen werden, siehe <a href="/previews/groupapi2feature/reference/payout/retrieve-limits">
+    Abrufen von Limits</a>. Wenn der Geschäftspartner mehrere MIDs hat und keine Währung angegeben ist, werden alle dazugehörigen MIDs ausgegeben.
+    - Ist ein MID-Limit erreicht, sind für diesen Zeitraum keine weiteren Auszahlungen mit dieser MID möglich.
+        Geschäftspartner können diese Informationen auch abrufen, indem sie sich im Web Interface für Geschäftspartner (dem Merchant Reporting
+        Tool, kurz MRT) einloggen. Hier wird allerdings nur der Auszahlungsstatus der aktuellen MID angezeigt, nicht der anderer, zugehöriger MIDs.
+
+- Der Auszahlungsbericht
+    - Für Abstimmungszwecke kann der Geschäftspartner eine CSV-Datei herunterladen, in der alle verfügbaren Informationen zu
+        Zahlungen und Auszahlungen enthalten sind. Diese Datei nennt sich “Payout Report”. Den Payout Report können Sie aus dem MRT herunterladen.
+
+- Abrechnung
+    -Alle Auszahlungstransaktionen sind vom Geschäftspartner zu tragen. Der monatliche Auszahlungsbetrag wird automatisch
+        vom monatlichen Zahlbetrag abgezogen.
+
+        Die Gesamtsumme der Auszahlungen darf die Gesamtsumme der Zahlungen in gewissen Grenzen überschreiten;
+        detaillierte Informationen zu diesen Grenzen erhalten Sie über die Funktion <a href="/previews/groupapi2feature/reference/payout/retrieve-limits">
+    Abrufen von Limits</a>.
+
+## Payout-Implementierung
+
+- Voraussetzungen
+    - API-Key als Login Credential wurde von paysafecard bereitgestellt.
+    - Die IP-Adresse des Zahlungsservers wurde autorisiert (wird beim Versuch, auf den Dienst zuzugreifen, ein „Fehler 403“ ausgegeben, ist anzunehmen, dass die IP-Adresse noch nicht freigeschaltet wurde).
+    - Inhaltstyp und Zeichensatz: Bitte achten Sie beim Übermitteln von Anfragen darauf, dass im HTTP-Header folgende Werte gesetzt sind auf Content-Type: application/json;charset=UTF-8
+    - Zum Testen wurde dem Geschäftspartner ein my paysafecard Konto zur Verfügung gestellt.
+
+- Interface-Richtlinien
+    - Informationen zur idealen paysafecard Implementierung aus Kundensicht entnehmen Sie bitte
+        Dem Dokument <a href="https://www.paysafecard.com/fileadmin/Website/Dokumente/B2B/paysafecard_payout_InterfaceGuidelines_DE.pdf" target="_blank">*Interface guidelines*</a> .
+    - Hinweis: Alle vorstehend in diesem Dokument angegebenen Fehlermeldungen müssen implementiert werden. 
+
+# Group API Calls für Payout Auszahlungen
+
+Mit Payout API können Sie:
+- Eine Auszahlung validieren
+- Eine Zahlung auf zwei Wegen einziehen
+- Auszahlungen nach ID abrufen
+- Auszahlungs-Limits nach Währung abrufen
+
+## Validieren einer payout Auszahlung [/payouts]
+
+```
+POST /payouts
+```
+
+| Parameter                   | Type [validation]                        | Erforderlich             | Beispiel                        | Beschreibung                          |
+| ---                         | ---                                      | ---                      | ---                             | ---                                   |
+| `type`                      | String <br/>[PAYSAFECARD]           | Erforderlich             | paysafecard                     | Muss auf PAYSAFECARD gesetzt sein.|
+| `capture`                   | boolean <br/>[true,false]               | Erforderlich             | wahr oder falsch                | Definiert, ob eine Auszahlung validiert (false) oder ausgeführt werden soll (true). |
+| `amount`                    | float oder integer<br/>                  | Erforderlich             | 10.00                           | Mit einer Genauigkeit von zwei Stellen nach dem Komma.| [max length: 11 digits before, optionally 2 digits after decimal point]
+| `currency`                  | String  <br/>                       | Erforderlich             | EUR                             | ISO 4217 (3-stelliger ISO-Währungscode) | [max. length: 3, all uppercase]
+| `customer[id]`              | String <br/>[max. length: 60]       | Erforderlich             | uniquecustomerid                | Eindeutige ID des Kunden in Ihrem System. |
+| `customer[email]`           | string<br/> [Gültige E-Mail Adresse] |  Erforderlich wenn `[psc_id]` nicht angegeben ist| valid@email.com                            | Needs to be the email that the customer used to register for myPaysafecard. |
+| `customer[psc_id]`          | integer<br/> [Gültige my paysafecard Konto ID] | Erforderlich wenn `[email]` nicht angegeben ist| 779456189809                            | Id of the my paysafecard account of the customer.|
+| `customer[date_of_birth]`   | String  <br/>[yyyy-mm-dd]           | Erforderlich             | 1996-10-20                      |Geburtsdatum des Kunden. |
+| `customer[first_name]`      | String  <br/>[max. length: 60]      | Erforderlich             | Max                             | Vorname des Kunden | 
+| `customer[last_name]`       | String  <br/>[max. length: 60]      | Erforderlich             | Power                           | Nachname des Kunden | 
+
+Mit dem optionalen HEADER-Parameter `Correlation-ID` kann der `\payouts` Call  verwendet werden, um eine Auszahlung zu validieren (`capture=false`) und um dieselbe Auszahlung auszuführen (`capture=true`).
+Bei erfolgreicher Ausführung der Anfrage ändert sich der `status` der Auszahlung auf  `VALIDATION_SUCCESSFUL` bei `capture=false` oder `SUCCESS` bei `capture=true`.
+
+Die `id` in der Antwort des `/payouts` Call kann gespeichert und verwendet werden, um einen `/payouts/{id}/capture` Call eines vorher erfolgreichen Validierungs-Calls wie unten dargestellt durchzuführen.
+
++ Attribute (PayoutRequest)
+
+### Validierung einer neuen Auszahlung [POST]
+
++ Request (application/json)
+
+    + Header
+
+                Autorisierung: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
++ Attribute (PayoutValidationRequest)
+
++ Response 201 (application/json)
+
++ Attribute (PayoutValidationResponse)
+
+
+## Erfassen einer vorvalidierten Auszahlung [/payouts/{id}/capture]
+
+| Parameter                     | Type    | Required | Example            | Description                          |
+| ---                           | ---     | ---      | ---                | ---                                  |
+| `id`                  | string  | Erforderlich | out_1000003517_Un1qu31dF0rE4chR3quest_EUR | id from Step 1 |
+
+Unter Verwendung der Auszahlungs-ID eines zuvor validierten oder ausgeführten Auszahlungsanrufs und wenn die Auszahlung, die durch die angegebene "ID" identifiziert wird, im Status "VALIDATION SUCCESSFUL" ist, wird die Auszahlung ausgeführt.
+
+```
+POST /payouts/{id}/capture
+```
+
+### payout Ausführung einer bereits validierten Auszahlung [POST]
+
++ Parameter
+
+    + id: `out_1000003517_Un1qu31dF0rE4chR3quest_EUR` (required) - ID of einer vorab validierten Auszahlung
+
++ Request (application/json)
+
+    + Header
+
+                Autorisierung: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
+
++ Response 200 (application/json)
+
+    + Attribute (PayoutCaptureResponse)
+
+
+
+## payout Auszahlungen abrufen [/payouts/{id}]
+
+Zum Abrufen von payout Auszahlungen nach bereitgestellter `id`.
+
+### payout Auszahlungen abrufen [GET]
+
++ Parameter
+
+    + id: `out_1000003517_Un1qu31dF0rE4chR3quest_EUR` (required) - ID of eine bereits validierte oder ausgeführte Auszahlung
+
++ Request (application/json)
+
+    + Header
+
+                Autorisierung: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
++ Response 200 (application/json)
+
+    + Attribute (PayoutGetValidatedResponse)
+
+
+## Limits abrufen [/payouts/limits/{currency}]
+
+Zum Abrufen von Limit-Informationen für eine bestimmte `currency`. Die `currency` muss gemäß ISO 4217 angegeben sein (3-stelliger ISO-Währungscode).
+Wenn keine Währung angegeben ist, werden die Limit-Informationen für alle dazugehörigen MIDs ausgegeben.
+
+### Limits abrufen [GET]
+
++ Parameter
+
+    + currency: `EUR` (erforderlich) - 3-stelliger ISO-Währungscode
+
++ Request (application/json)
+
+    + Header
+
+                Autorisierung: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
++ Response 200 (application/json)
+
+    + Attribute (PayoutLimitResponse)
+
+# Group Fehlercodes für Payout
+
+|Code                                        |Nummer (optional)  |HTTP Status      |Beschreibung          |
+|---                                         |---                |---              |---                  |
+|`customer_balance_exceeded `                |3167               |400              |Kundenguthaben überschritten.|
+|`topup_limit_exceeded `                     |3170               |400              |Aufladelimit überschritten.|
+|`customer_yearly_payout_limit_reached `     |3194               |400              |Jährliches Auszahlungslimit des Kunden überschritten.|
+|`customer_details_mismatched `              |3195               |400              |Abweichung beim Vergleich der Daten mit dem Kundenkonto.|
+|`mypsc_account_not_found`                   |3162               |400              |Kein my paysafecard Konto mit den angegebenen Credentials gefunden.|
+|`max_amount_of_payout_merchants_reached`    |3198               |400              |Diesem Konto wurde bereits die maximale Anzahl von Payout Merchant Clients zugewiesen.|
+|`max_payout_merchant_clients_assigned`      |3197               |400              ||Dieser Kunden-ID wurde bereits die maximale Anzahl von Payout-Konten zugewiesen.|
+|`kyc_invalid_for_payout_customer`           |3168               |400              |Auszahlung abgelehnt - Kontoregistrierung unvollständig.|
+|`missing_parameter`                         |3150               |400              |Zwingend erforderlicher Parameter fehlt|.
+|`merchant_not_allowed_for_payout`           |3161               |400              |Merchant nicht zum Durchführen dieser Aktion berechtigt.|
+|`duplicate_payout_request`                  |3164               |400              |Doppelte Auszahlungsanfrage.|
+|`Invalid amount`                            |3165               |400              |Ungültiger Betrag.|
+|`merchant_limit_reached`                    |3166               |400              |Merchant-Limit erreicht.|
+|`payout_id_collision`                       |3169               |400              |Payout-ID passt nicht zur vorhandenen Dispositions-ID|
+|`payout_amount_below_minimum`               |3171               |400              |Auszahlungsbetrag unterschreitet Mindestauszahlungsbetrag des Merchant.|
+|`customer_inactive`                         |3193               |400              |Kunde nicht aktiv.|
+|`payout_blocked`                            |3199               |400              |Auszahlung aus Sicherheitsgründen gesperrt.|
+
+Andere Fehler können dem Kunden als „allgemeiner technischer Fehler“ gemeldet werden. Grundsätzlich sollte beim Auftreten solcher 
+Fehler der Geschäftspartner paysafecard sofort unter integration@paysafecard.com kontaktieren, wenn das Konto nicht im Produktivbetrieb ist.
+Für Konten im Produktivbetrieb wenden Sie sich bitte an techsupport@paysafecard.com.
+
+# Group Refund Rückerstattungsprozess
+
+Das Refund Feature bietet Geschäftspartnern die Möglichkeit, zuvor erhaltene paysafecard Zahlungen (teilweise)
+an das my paysafecard Konto des Kunden zurückzuerstatten.
+
+Eine Erstattung erfolgt immer in der Währung der ursprünglichen Zahlungstransaktion.
+
+Rückerstattungen können bis zu 45 Tage nach der ersten Zahlung erstattet werden.
+
+![Refund Flow](https://www.paysafecard.com/fileadmin/api/images/paysafecard_refund_de.jpg)
+
+- Voraussetzungen
+    - Der Geschäftspartner muss die REST-Funktionen für den Merchant Refund auf Website oder Backend-System implementiert haben.
+    - Der Geschäftspartner muss voll integriert und Rückerstattungen müssen durch paysafecard freigeschaltet sein.
+    - Der Kunde muss über ein my paysafecard Konto verfügen, um Rückerstattungen erhalten zu können.
+    - Rückerstattungstransaktionen stehen immer in Bezug zu vorangegangenen Zahlungen. Aus diesem Grund ist es erforderlich, dass erst eine
+        Zahlung verarbeitet wurde, bevor eine Rückerstattung bearbeitet werden kann.
+
+- Validierung und Rückerstattung
+
+    Damit die angeforderte Rückerstattung weiter bearbeitet werden kann, muss der Geschäftspartner vorab prüfen,
+        wie wahrscheinlich es ist, dass die anstehende Rückerstattung erfolgreich ist. Es gibt bestimmte Umstände, unter denen eine Rückerstattung abgelehnt werden
+        kann. Die Validierung wird durchgeführt, indem bei einer Rückerstattungsanfrage `capture=false` angegeben wird.
+
+    Sobald die Validierung erfolgreich war, kann der Geschäftspartner die Rückerstattung an den Kunden von paysafecard einleiten.
+        paysafecard schreibt den angefragten Rückerstattungsbetrag dem „my paysafecard“-Konto des Kunden gut.
+
+![Refund Flow](https://www.paysafecard.com/fileadmin/api/images/paysafecard_merchant_refund_de.jpg)
+
+- Abrechnung
+
+    Alle erfolgreich durchgeführten Rückerstattungen werden von den Zahlungen (Saldierung) auf der monatlichen Rechnung abgezogen, die paysafecard
+        an seine Geschäftspartner sendet.
+
+# Group API Calls für refund Rückerstattung
+
+## Validieren/Ausführen einer Rückerstattung [/payments/{id}/refunds]
+
+```
+POST /payments/{id}/refunds
+```
+
+| Parameter                     | Type [Validierung]              | Erforderlich                   | Beispiel                  | Beschreibung                          |
+| ---                           | ---                             | ---                            | ---                       | ---                                   |
+| `type`                        | String <br/>[PAYSAFECARD] | Erforderlich                   | paysafecard               | Muss auf PAYSAFECARD gesetzt sein.|
+| `capture`                     | boolean<br/>[wahr,falsch]      | Erforderlich                   | wahr oder falsch|
+| `amount`                      | float or integer<br/>         | Erforderlich                   | 10.00                     | Mit einer Genauigkeit von zwei Stellen nach dem Komma.| [max Länge: 11 Stellen vor, optional 2 Stellen nach dem Dezimalpunkt]
+| `currency`                    | String <br/>              | Erforderlich                   | EUR                       | ISO 4217 (3-stelliger ISO-Währungscode) | [max. Länge: 3, alles in Großbuchstaben]
+| `customer[email]`             | String<br/>               | optional<br/>eins von email,   | herzis@mama.com           | Muss die E-Mail Adresse sein, mit der der Kunde sich für my paysafecard registriert hat. |
+                                                                      phone_number, account_id
+### Validierung einer neuen refund Rückerstattung[POST]
+
++ Request (application/json)
+
+    + Header
+
+               Autorisierung: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
+    + Attribute (RefundValidationRequest)
+
++ Response 201 (application/json)
+
+    + Attribute (RefundResponse)
+
+## Einziehen einer vorvalidierten Rückerstattung [/payments/{paymentid}/refunds/{refundid}/capture]
+
+| Parameter                     | Type    | Required | Example            | Description                          |
+| ---                           | ---     | ---      | ---                | ---                                  |
+| `id`                  | string  | Erforderlich | ref_1000000007_2838fhsd6dashsdkfsd_EUR | id from Step 1
+
+### Capturing a pre validated Refund [POST]
+
++ Parameters
+
+    + paymentid: `pay_9000001500_Bo2Phc1X2Gtg6Nu7WtqHZrjA2At3qdkj_EUR` (required) - Id of a prevalidated or captured payout
+    + refundid: `ref_9000001500_MfnRV7RG19RgpqHACDpQDX16oRJHFWxs_EUR`
+
++ Request (application/json)
+
+    + Headers
+
+               Authorization: Basic cHNjX0R4dThqSnI1LVdPYXhLWnpjOXdyMUtNLXd1Y3dZMXg=
+
+    + Attributes (RefundCaptureRequest)
+
++ Response 201 (application/json)
+
+    + Attributes (RefundResponse)
+
+# Group Refund Error Codes
+
+|Code                                                   |Number (optional)  |HTTP Status      |Description          |
+|---                                                    |---                |---              |---                  |
+|`PRODUCT_NOT_AVAILABLE`                                |3100               |404              |Product not available.|
+|`DUPLICATE_ORDER_REQUEST`                              |3103               |400              |Duplicate order request.|
+|`FACEVALUE_FORMAT_ERROR`                               |3106               |400              |Invalid facevalue format.|
+|`MISSING_PARAMETER`                                    |3150               |400              |Missing paramenter.|
+|`INVALID_CURRENCY`                                     |3151               |400              |Invalid currency.|
+|`MERCHANT_NOT_ALLOWED_FOR_PAYOUT`                      |3161               |400              |Merchant not allowed to perform this Action.|
+|`CUSTOMER_NOT_FOUND`                                   |3162               |404              |No customer account found by provided credentials.|
+|`INVALID_PARAMETER`                                    |3163               |400              |Invalid paramater.|
+|`duplicate_payout_request`                             |3164               |400              |Transaction already exists.|
+|`INVALID_AMOUNT`                                       |3165               |400              |Invalid amount.|
+|`CUSTOMER_LIMIT_EXCEEDED`                              |3167               |400              |Customer limit exceeded.|
+|`KYC_INVALID_FOR_PAYOUT_CUSTOMER`                      |3168               |400              |Feature not activated in this country for this kyc Level.|
+|`payout_id_collision`                                  |3169               |400              |Payout id collides with existing disposition id|
+|`topup_limit_exceeded`                                 |3170               |400              |Top-up limit exceeded.|
+|`payout_amount_below_minimum`                          |3171               |400              |Payout amount is below minimum payout amount of the merchant.|
+|`MERCHANT_REFUND_EXCEEDS_ORIGINAL_TRANSACTION`         |3179               |400              |Merchant refund exceeds original transaction.|
+|`MERCHANT_REFUND_ORIGINAL_TRANSACTION_INVALID_STATE`   |3180               |400              |Original Transaction of Merchant Refund is in invalid state.|
+|`MERCHANT_REFUND_CLIENT_ID_NOT_MATCHING`               |3181               |400              |Merchant Client Id not matching with original Payment.|
+|`NO_UNLOAD_MERCHANT_CONFIGURED`                        |3182               |400              |merchant client Id missing.|
+|`MERCHANT_REFUND_MISSING_TRANSACTION`                  |3184               |404              |No original Transaction found.|
+|`merchant_refund_customer_credentials_missing`         |3185               |404              |my paysafecard account not found on original transaction and no additional credentials provided.|
+|`customer_inactive`                                    |3193               |400              |Customer not active.|
+|`customer_yearly_payout_limit_reached`                 |3194               |400              |Customer yearly payout limit exceeded.|
+|`customer_details_mismatch`                            |3195               |400              |Customer details from request don't match with database.|
+|`max_amount_of_payout_merchants_reached`               |3198               |400              |There is already the maximum number of pay-out merchant clients assigned to this account.|
+|`payout_blocked`                                       |3199               |400              |Payout blocked due to security reasons.|
+
+Other errors can be communicated to the customer as “general technical error”. In general when one of these 
+errors occur, the business partner should contact paysafecard immediately via integration@paysafecard.com if the account is not live.
+For live accounts, techsupport@paysafecard.com should be contacted.
+
+# Data Structures
+
+## TypedObject (object)
++ type: PAYSAFECARD (required, fixed) - Type of the product, must be set to PAYSAFECARD.
+
+## PaymentRequest (TypedObject)
++ amount: 0.01 (number, required) - Payment amount, precision must be 2 digits after the colon.
++ currency: EUR (required) - ISO 4217 (3 letter ISO currency code).
++ redirect (object) 
+    + `success_url`: "https://notification.com/{payment_id}" (required) - URLs to redirect after successful or failed authorization. The placeholder {payment_id} in the URL is replaced with the actual ID of this payment.
+    + `failure_url`: "https://notification.com/{payment_id}" (required) - URLs to redirect after customer clicked on cancel. The placeholder {payment_id} in the URL is replaced with the actual ID of this payment.
++ `notification_url`: "https://notification.com/{payment_id}" (required)- Notification URL we will contact after the authorization has been successfully completed. The placeholder {payment_id} in the URL is replaced with the actual ID of this payment.
++ customer (object)
+    + id: merchantclientid5HzDvoZSodKDJ7X7VQKrtestAutomation (required) - Only the id is mandatory. It's value uniquely identifies the customer and is provided by you. If any personal data (e.g. customer's user name, email address, etc.) is used here, it has to be encrypted or hashed for security reasons.
+    + min_age: 18 (optional) - Valid for my paysafecard payments. For additional information about my paysafecard, please see the section "my paysafecard". Restricts payments to my paysafecard customers only, who are equal to or older than the specified age. Please note: This means that it is required that the customer has a registered my paysafecard account to make the payment. 
+    + kyc_level: SIMPLE (optional) - Valid values SIMPLE or FULL. These values refer to the KYC level of the customer's my paysafecard account. Depending on the country, my paysafecard accounts are offered with SIMPLE and/or FULL customer identification. 
+    + country_restriction: AT (optional) - ISO 3166-1 alpha-2 two-letter country code used to restrict payments to residents of a particular country.
++ submerchant_id: 1 - ReportingCriterion (optional) - Also called ‘reporting criteria’, offers the possibility to classify sub-merchants. Agreement with paysafecard needed - not agreed values lead to a failed payment.(max. 8 digits in alpha numeric code)
++ shop_id: `shop1` (optional) - Identification of the shop which is the originator of the request. This is most likely used by payment service providers who act as a proxy for other payment methods as well.
+ed payment request
+## PaymentResponse (TypedObject)
++ id: pay_1000000007_k3JfFMcpLPXGMk1mOdkbmRARdr5kKQeI_EUR - The unique id of this payment
++ created: 1430317131908 (number)
++ updated: 1430317131908 (number)
++ amount: 0.01 (number)
++ currency: EUR (required) - ISO 4217 (3 letter ISO currency code).
++ status: SUCCESS
++ redirect (Redirect)
++ `notification_url`: https://notification.com/{payment_id} (required)- Notification URL we will contact after the authorization has been successfully completed. The placeholder {payment_id} in the URL is replaced with the actual ID of this payment.
++ customer (CustomerResponseFull)
++ card_details (array[CardDetails])
+
+## CardDetails (object)
++ serial: 1453591278
++ currency: EUR
++ amount: 0.01
++ type: 00002
++ country: AT 
+
+## CustomerResponseFull (object)
++ id
++ account_id
++ first_name: xApuEWppcYCptzoRnykkNuKznx
++ last_name: DbHILeEKPCRTCFuGbHKByYtbCm
++ email: psc.mypins+TEST_MOXSMYkqkkwWDH@gmail.com - the customer identifier
++ age
++ kyc_level
++ currency
+
+
+## PayoutCustomer (object) - In general
++ id: merchantclientid5HzDvoZSodKDJ7X7VQKrtestAutomation
++ email: psc.mypins+9000001500_xZteDVTw@gmail.com (required) - the customer identifier
++ psc_id: 779456189809 (number, optional) - my paysafecard Konto ID
++ date_of_birth: `1986-06-28` (required)
++ first_name: SuAeRHtjkNJSoraWHZAERgaRdA (required)
++ last_name: VgObhlCPEXNexGsXqSuIWhzDtt (required)
+
+## Redirect (object)
++ `success_url`: https://ok.com/{payment_id}
++ `failure_url`: https://nok.com/{payment_id}
+
+## PayoutRequest (TypedObject)
++ amount: 00.01 (number, required) - Payout amount, precision must be 2 digits after the colon.
+`10.00`
++ currency: EUR (string, required) - ISO 4217 (3 letter ISO currency code).
++ customer (PayoutCustomer)
+
+## PayoutValidationRequest (PayoutRequest)
++ capture: false (boolean) - To perform a validation only, set it to false
+
+## PayoutCaptureRequest (PayoutRequest)
++ capture: true (boolean) - To perform the capture, set it to true
+
+## PayoutResponse (object)
++ object: payout (string) - Type of object, always payout
++ id: out_9000001500_2838fhsd6dashsdkfsd_EUR (string) - The payout ID
++ created: 1430137532383 (number) - Unix timestamp of the creation date
++ updated: 1430137532383 (number) - Unix timestamp when the object was updated
++ currency: EUR (string) - ISO currency code
++ amount: 10.00 (number) - Payout amount
++ customer (object)
++ id: kfoLkCq3RBIJiJF6sJWBeYA4tnfsCms2
++ email: valid@email.com
+
+## PayoutGetValidatedResponse (PayoutResponse)
++ status: VALIDATION_SUCCESSFUL
+
+## PayoutConvertedCustomerAmounts (PayoutResponse)
++ customer_currency: EUR
++ customer_amount: 5.00 (number)
+
+## PayoutValidationResponse (PayoutConvertedCustomerAmounts)
++ status: VALIDATION_SUCCESSFUL
+
+## PayoutCaptureResponse (PayoutConvertedCustomerAmounts)
++ status: SUCCESS
+
+## PayoutLimitResponse (object)
++ currency: EUR - ISO 4217 (3 letter ISO currency code)
++ mid: 1000003517
++ credit_line: 0 (number)
++ daily_payout_amount: 27.47 (number)
++ daily_payout_balance: 999972.53 (number)
++ daily_payout_limit: 1000000 (number)
++ total_payment_amount: 47.92 (number)
++ total_payout_amount: 297.12 (number)
++ total_payout_balance: `-249.20` (number)
+
+## RefundRequest (TypedObject)
++ amount: 00.01 (number, required)
++ currency: EUR (required)
++ customer (object, required)
+    + id: merchantclientid5HzDvoZSodKDJ7X7VQKrtestAutomation (required) 
+    + email: psc.mypins+9000001500_xZteDVTw@gmail.com (required)
+
+## RefundValidationRequest (RefundRequest)
++ capture: false (boolean, required)
+
+## RefundCaptureRequest (RefundRequest)
++ capture: true (boolean, required)
+
+## RefundResponse (object)
++ object: refund - Type of object, always refund
++ id: ref_1000000007_2838fhsd6dashsdkfsd_EUR
++ created: 1430137532383 (number)
++ updated: 1430137532383 (number)
++ currency: EUR
++ amount: 10.00
++ customer (object)
+    + id: merchantclientid5HzDvoZSodKDJ7X7VQKrtestAutomation
+    + email: valid@email.com
++ status : SUCCESS
